@@ -1,96 +1,153 @@
 <template>
-  <div v-if="show" class="modal-overlay" @click.self="close">
-    <div class="modal-dialog" style="max-width: 950px;">
+  <div v-if="show" class="modal-overlay" :class="{ 'fullscreen-overlay': isFullscreen }" @click.self="close">
+    <div
+      class="modal-dialog"
+      :class="{ 'modal-fullscreen': isFullscreen }"
+      :style="isFullscreen ? '' : 'max-width: 1100px; width: 95%; max-height: 92vh;'"
+    >
       <div class="modal-header">
-        <div class="modal-title">
-          <span>📅 Date-Wise Broker Rate Configuration (Separate DocType)</span>
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+            <span>📅 Date-Wise Broker Rate Configuration</span>
+            <span v-if="isFullscreen" class="badge badge-purple" style="font-size: 11px;">⛶ Full Screen Mode</span>
+          </div>
+          <span v-if="selectedBroker" class="badge badge-blue">Broker: {{ selectedBroker.broker_name || form.broker }}</span>
         </div>
-        <button type="button" class="clear-btn" style="position: static;" @click="close">✕</button>
+
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm"
+            style="background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.25);"
+            @click="isFullscreen = !isFullscreen"
+          >
+            {{ isFullscreen ? '🗗 Standard Window' : '⛶ Full Screen' }}
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm"
+            style="background: #ef4444; color: #fff; font-weight: 700; border: none; padding: 6px 12px;"
+            @click="close"
+          >
+            ✕ Close
+          </button>
+        </div>
       </div>
 
       <div class="modal-body">
-        <div class="notice-banner notice-info">
+        <div class="notice-banner notice-info" style="margin-bottom: 20px;">
           <span>💡 Select Effective Date and Broker Name. Based on whether the broker is marked for <strong>Purchase</strong>, <strong>Sell</strong>, or <strong>Both</strong>, the respective tables dynamically load here for date-wise rate rules.</span>
         </div>
 
-        <div class="form-grid" style="grid-template-columns: 1fr 2fr; margin-bottom: 20px;">
-          <div class="form-group">
-            <label>Effective Date *</label>
-            <input v-model="form.effective_date" type="date" required />
-          </div>
+        <!-- Meta Grid -->
+        <div style="background: #ffffff; padding: 18px 24px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 24px;">
+          <div class="form-grid" style="grid-template-columns: 1fr 2fr; gap: 20px;">
+            <div class="form-group">
+              <label>Effective Date *</label>
+              <input v-model="form.effective_date" type="date" required style="font-size: 14px;" />
+            </div>
 
-          <div class="form-group">
-            <label>Broker Name *</label>
-            <TypeaheadSelect
-              v-model="form.broker"
-              :label="form.broker_name"
-              placeholder="Search Broker Name..."
-              :fetch-fn="searchBrokers"
-              @change="onBrokerSelect"
-            />
+            <div class="form-group">
+              <label>Broker Name *</label>
+              <TypeaheadSelect
+                v-model="form.broker"
+                :label="form.broker_name"
+                placeholder="Search Broker Name..."
+                :fetch-fn="searchBrokers"
+                @change="onBrokerSelect"
+              />
+            </div>
           </div>
         </div>
 
         <!-- Broker Eligibility Badges -->
-        <div v-if="selectedBroker" style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px; padding: 10px 14px; background: #f8fafc; border-radius: 6px; border: 1px solid var(--border);">
-          <span style="font-size: 13px; font-weight: 600; color: #334155;">Broker Roles:</span>
+        <div v-if="selectedBroker" style="display: flex; gap: 14px; align-items: center; margin-bottom: 20px; padding: 12px 18px; background: #ffffff; border-radius: 8px; border: 1px solid var(--border);">
+          <span style="font-size: 13px; font-weight: 700; color: #334155;">Active Checkpoints:</span>
           <span
             class="badge"
             :class="selectedBroker.applicable_for_purchase ? 'badge-blue' : 'badge-gray'"
           >
-            {{ selectedBroker.applicable_for_purchase ? '✓ Purchase Applicable' : '✗ Purchase Inactive' }}
+            {{ selectedBroker.applicable_for_purchase ? '✓ Purchase Checkpoint Active' : '✗ Purchase Inactive' }}
           </span>
           <span
             class="badge"
             :class="selectedBroker.applicable_for_sales ? 'badge-green' : 'badge-gray'"
           >
-            {{ selectedBroker.applicable_for_sales ? '✓ Sell Applicable' : '✗ Sell Inactive' }}
+            {{ selectedBroker.applicable_for_sales ? '✓ Sell Checkpoint Active' : '✗ Sell Inactive' }}
           </span>
         </div>
 
         <!-- 1. Purchase Table (shown only if broker is applicable for purchase) -->
-        <div v-if="selectedBroker && selectedBroker.applicable_for_purchase" style="margin-bottom: 24px; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px; background: #fafcff;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div
+          v-if="selectedBroker && selectedBroker.applicable_for_purchase"
+          style="background: #ffffff; border: 2px solid #93c5fd; border-radius: 10px; padding: 20px 24px; margin-bottom: 24px;"
+        >
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
             <div>
-              <span style="font-weight: 700; font-size: 14px; color: #1e40af;">🛒 Purchase Brokerage Rates (Effective from {{ form.effective_date }})</span>
+              <span style="font-weight: 800; font-size: 15px; color: #1e40af;">🛒 Purchase Brokerage Rates (Effective from {{ form.effective_date }})</span>
             </div>
-            <button type="button" class="btn btn-secondary btn-sm" @click="addPurchaseRow">
-              + Add Purchase Item Rate
-            </button>
+            <div style="display: flex; gap: 8px;">
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                @click="quickAddAllCommodities('purchase_brokerage_rules')"
+              >
+                ⚡ Add All Commodities
+              </button>
+              <button type="button" class="btn btn-primary btn-sm" @click="addPurchaseRow">
+                + Add Purchase Item Rate
+              </button>
+            </div>
           </div>
 
-          <div v-if="form.purchase_brokerage_rules.length === 0" style="text-align: center; padding: 16px; color: #64748b; font-size: 12.5px;">
+          <div v-if="form.purchase_brokerage_rules.length === 0" style="text-align: center; padding: 24px; color: #64748b; font-size: 13px; background: #f8fafc; border-radius: 6px;">
             No date-wise purchase rates set. Click "+ Add Purchase Item Rate" to configure.
           </div>
 
-          <div v-else class="data-table-wrap">
+          <div v-else class="modal-table-wrap">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th style="width: 32%;">Item</th>
-                  <th style="width: 18%;">Active Method</th>
-                  <th style="width: 15%;">Per Bag (₹)</th>
-                  <th style="width: 15%;">Per Quintal (₹)</th>
-                  <th style="width: 15%;">Percentage (%)</th>
-                  <th style="width: 5%;"></th>
+                  <th style="width: 36px; text-align: center;">#</th>
+                  <th style="min-width: 360px;">Commodity / Item *</th>
+                  <th style="width: 170px;">Active Method</th>
+                  <th style="width: 150px;">Per Bag (₹)</th>
+                  <th style="width: 150px;">Per Quintal (₹)</th>
+                  <th style="width: 150px;">Percentage (%)</th>
+                  <th style="width: 44px; text-align: center;"></th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="(row, idx) in form.purchase_brokerage_rules" :key="idx">
+                  <td style="text-align: center; color: #64748b; font-weight: 700; font-size: 12px;">{{ idx + 1 }}</td>
                   <td>
-                    <TypeaheadSelect
-                      v-model="row.item"
-                      :label="row.item_name || row.item"
-                      placeholder="Search Item..."
-                      :fetch-fn="searchItems"
-                      @change="(it) => { if(it) row.item_name = it.label || it.name }"
-                    />
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                      <div style="flex: 1; min-width: 240px;">
+                        <TypeaheadSelect
+                          v-model="row.item"
+                          :label="row.item_name || row.item"
+                          placeholder="Search Item..."
+                          :fetch-fn="searchItems"
+                          @change="(it) => { if(it) row.item_name = it.label || it.name }"
+                        />
+                      </div>
+                      <select
+                        v-if="availableItems.length > 0"
+                        style="width: 140px; font-size: 12px; padding: 7px 8px; background: #f1f5f9;"
+                        @change="(e) => onQuickPickItem(row, e)"
+                      >
+                        <option value="">▼ Pick Item...</option>
+                        <option v-for="it in availableItems" :key="it.id || it.name" :value="it.id || it.name">
+                          {{ it.label || it.name }}
+                        </option>
+                      </select>
+                    </div>
                   </td>
                   <td>
                     <select v-model="row.brokerage_method" @change="onMethodChange(row)">
-                      <option value="Percentage">Percentage</option>
-                      <option value="Per Bag">Per Bag</option>
-                      <option value="Per Quintal">Per Quintal</option>
+                      <option value="Percentage">Percentage (%)</option>
+                      <option value="Per Bag">Per Bag (₹)</option>
+                      <option value="Per Quintal">Per Quintal (₹)</option>
                     </select>
                   </td>
                   <td>
@@ -98,7 +155,7 @@
                       type="number"
                       step="0.01"
                       v-model.number="row.per_bag"
-                      :style="row.brokerage_method === 'Per Bag' ? 'border-color: #2563eb; font-weight: 700;' : 'opacity: 0.5;'"
+                      :style="row.brokerage_method === 'Per Bag' ? 'border-color: #2563eb; background: #eff6ff; font-weight: 700;' : 'opacity: 0.5;'"
                       placeholder="0.00"
                       @input="onPerBagInput(row)"
                     />
@@ -108,7 +165,7 @@
                       type="number"
                       step="0.01"
                       v-model.number="row.per_quintal"
-                      :style="row.brokerage_method === 'Per Quintal' ? 'border-color: #2563eb; font-weight: 700;' : 'opacity: 0.5;'"
+                      :style="row.brokerage_method === 'Per Quintal' ? 'border-color: #2563eb; background: #eff6ff; font-weight: 700;' : 'opacity: 0.5;'"
                       placeholder="0.00"
                       @input="onPerQuintalInput(row)"
                     />
@@ -118,13 +175,13 @@
                       type="number"
                       step="0.01"
                       v-model.number="row.percentage"
-                      :style="row.brokerage_method === 'Percentage' ? 'border-color: #2563eb; font-weight: 700;' : 'opacity: 0.5;'"
+                      :style="row.brokerage_method === 'Percentage' ? 'border-color: #2563eb; background: #eff6ff; font-weight: 700;' : 'opacity: 0.5;'"
                       placeholder="0.00"
                       @input="onPercentageInput(row)"
                     />
                   </td>
                   <td style="text-align: center;">
-                    <button type="button" class="clear-btn" style="position: static; color: #dc2626;" @click="removePurchaseRow(idx)">🗑️</button>
+                    <button type="button" class="btn btn-sm" style="background: transparent; color: #ef4444; border: none; font-size: 16px;" @click="removePurchaseRow(idx)">🗑️</button>
                   </td>
                 </tr>
               </tbody>
@@ -133,48 +190,76 @@
         </div>
 
         <!-- 2. Sell Table (shown only if broker is applicable for sell) -->
-        <div v-if="selectedBroker && selectedBroker.applicable_for_sales" style="border: 1px solid #a7f3d0; border-radius: 8px; padding: 14px; background: #f0fdf4;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div
+          v-if="selectedBroker && selectedBroker.applicable_for_sales"
+          style="background: #ffffff; border: 2px solid #86efac; border-radius: 10px; padding: 20px 24px; margin-bottom: 24px;"
+        >
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
             <div>
-              <span style="font-weight: 700; font-size: 14px; color: #065f46;">🏷️ Sell Brokerage Rates (Effective from {{ form.effective_date }})</span>
+              <span style="font-weight: 800; font-size: 15px; color: #065f46;">🏷️ Sell Brokerage Rates (Effective from {{ form.effective_date }})</span>
             </div>
-            <button type="button" class="btn btn-secondary btn-sm" @click="addSalesRow">
-              + Add Sell Item Rate
-            </button>
+            <div style="display: flex; gap: 8px;">
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                @click="quickAddAllCommodities('sales_brokerage_rules')"
+              >
+                ⚡ Add All Commodities
+              </button>
+              <button type="button" class="btn btn-success btn-sm" @click="addSalesRow">
+                + Add Sell Item Rate
+              </button>
+            </div>
           </div>
 
-          <div v-if="form.sales_brokerage_rules.length === 0" style="text-align: center; padding: 16px; color: #64748b; font-size: 12.5px;">
+          <div v-if="form.sales_brokerage_rules.length === 0" style="text-align: center; padding: 24px; color: #64748b; font-size: 13px; background: #f8fafc; border-radius: 6px;">
             No date-wise sell rates set. Click "+ Add Sell Item Rate" to configure.
           </div>
 
-          <div v-else class="data-table-wrap">
+          <div v-else class="modal-table-wrap">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th style="width: 32%;">Item</th>
-                  <th style="width: 18%;">Active Method</th>
-                  <th style="width: 15%;">Per Bag (₹)</th>
-                  <th style="width: 15%;">Per Quintal (₹)</th>
-                  <th style="width: 15%;">Percentage (%)</th>
-                  <th style="width: 5%;"></th>
+                  <th style="width: 36px; text-align: center;">#</th>
+                  <th style="min-width: 360px;">Commodity / Item *</th>
+                  <th style="width: 170px;">Active Method</th>
+                  <th style="width: 150px;">Per Bag (₹)</th>
+                  <th style="width: 150px;">Per Quintal (₹)</th>
+                  <th style="width: 150px;">Percentage (%)</th>
+                  <th style="width: 44px; text-align: center;"></th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="(row, idx) in form.sales_brokerage_rules" :key="idx">
+                  <td style="text-align: center; color: #64748b; font-weight: 700; font-size: 12px;">{{ idx + 1 }}</td>
                   <td>
-                    <TypeaheadSelect
-                      v-model="row.item"
-                      :label="row.item_name || row.item"
-                      placeholder="Search Item..."
-                      :fetch-fn="searchItems"
-                      @change="(it) => { if(it) row.item_name = it.label || it.name }"
-                    />
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                      <div style="flex: 1; min-width: 240px;">
+                        <TypeaheadSelect
+                          v-model="row.item"
+                          :label="row.item_name || row.item"
+                          placeholder="Search Item..."
+                          :fetch-fn="searchItems"
+                          @change="(it) => { if(it) row.item_name = it.label || it.name }"
+                        />
+                      </div>
+                      <select
+                        v-if="availableItems.length > 0"
+                        style="width: 140px; font-size: 12px; padding: 7px 8px; background: #f1f5f9;"
+                        @change="(e) => onQuickPickItem(row, e)"
+                      >
+                        <option value="">▼ Pick Item...</option>
+                        <option v-for="it in availableItems" :key="it.id || it.name" :value="it.id || it.name">
+                          {{ it.label || it.name }}
+                        </option>
+                      </select>
+                    </div>
                   </td>
                   <td>
                     <select v-model="row.brokerage_method" @change="onMethodChange(row)">
-                      <option value="Percentage">Percentage</option>
-                      <option value="Per Bag">Per Bag</option>
-                      <option value="Per Quintal">Per Quintal</option>
+                      <option value="Percentage">Percentage (%)</option>
+                      <option value="Per Bag">Per Bag (₹)</option>
+                      <option value="Per Quintal">Per Quintal (₹)</option>
                     </select>
                   </td>
                   <td>
@@ -182,7 +267,7 @@
                       type="number"
                       step="0.01"
                       v-model.number="row.per_bag"
-                      :style="row.brokerage_method === 'Per Bag' ? 'border-color: #059669; font-weight: 700;' : 'opacity: 0.5;'"
+                      :style="row.brokerage_method === 'Per Bag' ? 'border-color: #059669; background: #ecfdf5; font-weight: 700;' : 'opacity: 0.5;'"
                       placeholder="0.00"
                       @input="onPerBagInput(row)"
                     />
@@ -192,7 +277,7 @@
                       type="number"
                       step="0.01"
                       v-model.number="row.per_quintal"
-                      :style="row.brokerage_method === 'Per Quintal' ? 'border-color: #059669; font-weight: 700;' : 'opacity: 0.5;'"
+                      :style="row.brokerage_method === 'Per Quintal' ? 'border-color: #059669; background: #ecfdf5; font-weight: 700;' : 'opacity: 0.5;'"
                       placeholder="0.00"
                       @input="onPerQuintalInput(row)"
                     />
@@ -202,13 +287,13 @@
                       type="number"
                       step="0.01"
                       v-model.number="row.percentage"
-                      :style="row.brokerage_method === 'Percentage' ? 'border-color: #059669; font-weight: 700;' : 'opacity: 0.5;'"
+                      :style="row.brokerage_method === 'Percentage' ? 'border-color: #059669; background: #ecfdf5; font-weight: 700;' : 'opacity: 0.5;'"
                       placeholder="0.00"
                       @input="onPercentageInput(row)"
                     />
                   </td>
                   <td style="text-align: center;">
-                    <button type="button" class="clear-btn" style="position: static; color: #dc2626;" @click="removeSalesRow(idx)">🗑️</button>
+                    <button type="button" class="btn btn-sm" style="background: transparent; color: #ef4444; border: none; font-size: 16px;" @click="removeSalesRow(idx)">🗑️</button>
                   </td>
                 </tr>
               </tbody>
@@ -216,23 +301,35 @@
           </div>
         </div>
 
-        <div v-if="!selectedBroker" style="text-align: center; padding: 40px; color: #94a3b8; font-size: 13.5px;">
+        <div v-if="!selectedBroker" style="text-align: center; padding: 50px 20px; color: #94a3b8; font-size: 14px; background: #ffffff; border-radius: 8px; border: 1px dashed #cbd5e1;">
+          <div style="font-size: 32px; margin-bottom: 8px;">🔍</div>
           Select a Broker above to automatically reveal applicable Purchase and Sell rate tables.
         </div>
       </div>
 
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" @click="close">Cancel</button>
-        <button type="button" class="btn btn-primary" :disabled="isSaving || !selectedBroker" @click="submitSave">
-          {{ isSaving ? 'Saving...' : '💾 Save Date-Wise Configuration' }}
-        </button>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 13px; color: #64748b;">
+          Status: <span class="badge badge-green">Active Rate Card</span>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn btn-secondary" @click="close">Cancel (<kbd>Esc</kbd>)</button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            :disabled="isSaving || !selectedBroker"
+            style="padding: 10px 24px; font-weight: 700;"
+            @click="submitSave"
+          >
+            {{ isSaving ? 'Saving...' : '💾 Save Date-Wise Configuration' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useFrappeApi, bootState } from '../composables/useFrappeApi'
 import TypeaheadSelect from './TypeaheadSelect.vue'
 
@@ -244,10 +341,12 @@ const emit = defineEmits(['close', 'saved'])
 
 const { searchEntities, getBrokerDetails, saveRateConfiguration } = useFrappeApi()
 const isSaving = ref(false)
+const isFullscreen = ref(true)
 const selectedBroker = ref(null)
+const availableItems = ref([])
 
 const form = reactive({
-  effective_date: bootState.today,
+  effective_date: bootState.today || new Date().toISOString().split('T')[0],
   broker: '',
   broker_name: '',
   status: 'Active',
@@ -255,12 +354,63 @@ const form = reactive({
   sales_brokerage_rules: [],
 })
 
+const loadAvailableCommodities = async () => {
+  try {
+    const res = await searchEntities('Item', '', { limit: 100 })
+    availableItems.value = res || []
+  } catch (err) {
+    console.error('Failed to load items:', err)
+  }
+}
+
+watch(
+  () => props.show,
+  (val) => {
+    if (val) {
+      loadAvailableCommodities()
+    }
+  }
+)
+
 const searchBrokers = async (q) => {
   return await searchEntities('Brokers', q)
 }
 
 const searchItems = async (q) => {
   return await searchEntities('Item', q)
+}
+
+const onQuickPickItem = (row, e) => {
+  const chosenVal = e.target.value
+  if (!chosenVal) return
+  const it = availableItems.value.find((i) => (i.id || i.name) === chosenVal)
+  if (it) {
+    row.item = it.id || it.name
+    row.item_name = it.label || it.name
+  }
+  e.target.value = ''
+}
+
+const quickAddAllCommodities = (tableField) => {
+  if (availableItems.value.length === 0) return
+  const currentTable = form[tableField]
+  const existingItems = new Set(currentTable.map((r) => r.item))
+
+  for (const it of availableItems.value) {
+    const itemCode = it.id || it.name
+    if (!existingItems.has(itemCode)) {
+      currentTable.push({
+        item: itemCode,
+        item_name: it.label || it.name,
+        brokerage_method: 'Percentage',
+        percentage: 1.0,
+        per_bag: 0,
+        per_quintal: 0,
+        remarks: '',
+      })
+      existingItems.add(itemCode)
+    }
+  }
 }
 
 const onBrokerSelect = async (item) => {
@@ -279,7 +429,6 @@ const onBrokerSelect = async (item) => {
   try {
     const details = await getBrokerDetails(form.broker)
     selectedBroker.value = details
-    // Pre-populate with existing master rules as sensible baseline
     form.purchase_brokerage_rules = (details.purchase_brokerage_rules || []).map((r) => ({ ...r }))
     form.sales_brokerage_rules = (details.sales_brokerage_rules || []).map((r) => ({ ...r }))
   } catch (e) {
@@ -292,7 +441,7 @@ const addPurchaseRow = () => {
     item: '',
     item_name: '',
     brokerage_method: 'Percentage',
-    percentage: 5.0,
+    percentage: 1.0,
     per_bag: 0,
     per_quintal: 0,
     remarks: '',
@@ -308,7 +457,7 @@ const addSalesRow = () => {
     item: '',
     item_name: '',
     brokerage_method: 'Percentage',
-    percentage: 5.0,
+    percentage: 1.0,
     per_bag: 0,
     per_quintal: 0,
     remarks: '',
@@ -363,9 +512,29 @@ const close = () => {
   emit('close')
 }
 
+const handleKeydown = (e) => {
+  if (!props.show) return
+  if (e.key === 'Escape') {
+    close()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
+  loadAvailableCommodities()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKeydown)
+})
+
 const submitSave = async () => {
   if (!form.broker) {
-    alert('Please select a broker.')
+    alert('Please select a Broker.')
+    return
+  }
+  if (!form.effective_date) {
+    alert('Please select Effective Date.')
     return
   }
 
@@ -375,10 +544,9 @@ const submitSave = async () => {
     emit('saved', res)
     close()
   } catch (e) {
-    alert('Error saving rate configuration: ' + e.message)
+    alert('Error saving configuration: ' + e.message)
   } finally {
     isSaving.value = false
   }
 }
 </script>
-

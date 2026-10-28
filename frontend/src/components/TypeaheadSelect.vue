@@ -1,5 +1,5 @@
 <template>
-  <div class="typeahead-wrap" ref="wrapRef">
+  <div class="typeahead-wrap" ref="wrapRef" :class="{ 'is-open': isOpen }">
     <div class="input-inner-wrap">
       <input
         ref="inputRef"
@@ -9,6 +9,7 @@
         :disabled="disabled"
         autocomplete="off"
         @focus="onFocus"
+        @click="onFocus"
         @input="onInput"
         @keydown.down.prevent="onKeyDown"
         @keydown.up.prevent="onKeyUp"
@@ -28,7 +29,11 @@
     </div>
 
     <!-- Dropdown menu -->
-    <div v-if="isOpen && (items.length > 0 || isLoading)" class="dropdown-panel">
+    <div
+      v-if="isOpen && (items.length > 0 || isLoading)"
+      class="dropdown-panel"
+      :class="{ 'drop-up': openUpward }"
+    >
       <div v-if="isLoading" class="dropdown-item loading">Searching...</div>
       <template v-else>
         <div
@@ -85,7 +90,16 @@ const displayLabel = ref(props.label || props.modelValue || '')
 const items = ref([])
 const activeIndex = ref(-1)
 const isLoading = ref(false)
+const openUpward = ref(false)
 let debounceTimer = null
+
+const checkDropdownDirection = () => {
+  if (!wrapRef.value) return
+  const rect = wrapRef.value.getBoundingClientRect()
+  const spaceBelow = window.innerHeight - rect.bottom
+  const spaceAbove = rect.top
+  openUpward.value = spaceBelow < 240 && spaceAbove > 200
+}
 
 watch(
   () => props.label,
@@ -106,6 +120,7 @@ watch(
 
 const onFocus = () => {
   if (props.disabled) return
+  checkDropdownDirection()
   isOpen.value = true
   fetchData(searchQuery.value)
 }
@@ -213,6 +228,10 @@ defineExpose({
   width: 100%;
 }
 
+.typeahead-wrap.is-open {
+  z-index: 9999;
+}
+
 .input-inner-wrap {
   position: relative;
   display: flex;
@@ -254,13 +273,20 @@ defineExpose({
   top: calc(100% + 4px);
   left: 0;
   right: 0;
+  min-width: 280px;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #94a3b8;
   border-radius: 6px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  max-height: 240px;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.2), 0 10px 10px rgba(0, 0, 0, 0.15);
+  max-height: 260px;
   overflow-y: auto;
-  z-index: 1000;
+  z-index: 999999;
+}
+
+.dropdown-panel.drop-up {
+  top: auto;
+  bottom: calc(100% + 4px);
+  box-shadow: 0 -14px 28px rgba(0, 0, 0, 0.2);
 }
 
 .dropdown-item {
