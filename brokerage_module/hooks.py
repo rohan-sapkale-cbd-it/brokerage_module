@@ -8,34 +8,26 @@ app_license = "mit"
 # Apps
 # ------------------
 
-# required_apps = []
+add_to_apps_screen = [
+	{
+		"name": "brokerage_desk",
+		"logo": "/assets/brokerage_module/logo.png",
+		"title": "Brokerage Desk",
+		"route": "/brokerage-desk",
+	}
+]
 
-# Each item in the list will be shown as an app in the apps page
-# add_to_apps_screen = [
-# 	{
-# 		"name": "brokerage_module",
-# 		"logo": "/assets/brokerage_module/logo.png",
-# 		"title": "Brokerage Module",
-# 		"route": "/brokerage_module",
-# 		"has_permission": "brokerage_module.api.permission.has_app_permission",
-# 	}
-# ]
-
-# The dock, the rail down the left of the desk, is a document rather than a hook. Author it in
-# Manage Dock on a developer-mode site and press Export to App, and it is written to
-# `brokerage_module/dock/brokerage_module/brokerage_module.json` for git to carry. An app that ships none has no
-# rail: its sidebar gets a switcher in the header instead.
-#
-# A companion app, one that extends a host app rather than standing on its own, says so with
-# `mount_on` on that same record, and its entries are appended to the host's rail. Mounting keeps
-# the companion off the apps screen, so it takes precedence over any add_to_apps_screen above.
+website_route_rules = [
+	{"from_route": "/brokerage-desk/<path:app_path>", "to_route": "brokerage_desk"},
+	{"from_route": "/brokerage-desk", "to_route": "brokerage_desk"},
+]
 
 # Includes in <head>
 # ------------------
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/brokerage_module/css/brokerage_module.css"
-# app_include_js = "/assets/brokerage_module/js/brokerage_module.js"
+app_include_js = "/assets/brokerage_module/brokerage_desk_launcher.js"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/brokerage_module/css/brokerage_module.css"

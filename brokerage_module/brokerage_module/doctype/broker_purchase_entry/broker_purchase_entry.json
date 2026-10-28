@@ -1,0 +1,271 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "BPE-.YYYY.-.#####",
+ "creation": "2026-10-28 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "posting_date",
+  "company",
+  "status",
+  "column_break_parties",
+  "broker",
+  "broker_name",
+  "supplier",
+  "supplier_name",
+  "section_trade",
+  "item",
+  "item_name",
+  "quantity",
+  "bags",
+  "rate",
+  "trade_amount",
+  "section_brokerage",
+  "brokerage_method",
+  "brokerage_rate",
+  "percentage",
+  "per_bag",
+  "per_quintal",
+  "brokerage_amount",
+  "rate_source",
+  "section_settlement",
+  "remarks",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "default": "Today",
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Draft\nSubmitted\nCancelled",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_parties",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "broker",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Broker",
+   "options": "Broker",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "broker.broker_name",
+   "fieldname": "broker_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Broker Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "supplier",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Supplier (Seller to Shop)",
+   "options": "Supplier",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "supplier.supplier_name",
+   "fieldname": "supplier_name",
+   "fieldtype": "Data",
+   "label": "Supplier Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_trade",
+   "fieldtype": "Section Break",
+   "label": "Trade & Commodity Details"
+  },
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Item",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "item.item_name",
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Item Name",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "quantity",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Quantity (Qtl)",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "bags",
+   "fieldtype": "Float",
+   "label": "Number of Bags"
+  },
+  {
+   "default": "0",
+   "fieldname": "rate",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Rate per Qtl (₹)",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "trade_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Trade Amount (₹)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_brokerage",
+   "fieldtype": "Section Break",
+   "label": "Brokerage Calculation"
+  },
+  {
+   "default": "Percentage",
+   "fieldname": "brokerage_method",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Brokerage Method",
+   "options": "Percentage\nPer Bag\nPer Quintal",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "brokerage_rate",
+   "fieldtype": "Float",
+   "label": "Brokerage Rate / Value"
+  },
+  {
+   "default": "0",
+   "fieldname": "percentage",
+   "fieldtype": "Percent",
+   "label": "Brokerage Percent (%)"
+  },
+  {
+   "default": "0",
+   "fieldname": "per_bag",
+   "fieldtype": "Currency",
+   "label": "Rate per Bag (₹)"
+  },
+  {
+   "default": "0",
+   "fieldname": "per_quintal",
+   "fieldtype": "Currency",
+   "label": "Rate per Quintal (₹)"
+  },
+  {
+   "default": "0",
+   "fieldname": "brokerage_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Brokerage Amount (₹)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rate_source",
+   "fieldtype": "Data",
+   "label": "Brokerage Terms Source",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_settlement",
+   "fieldtype": "Section Break",
+   "label": "Notes & Remarks"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Broker Purchase Entry",
+   "print_hide": 1,
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-10-28 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Brokerage Module",
+ "name": "Broker Purchase Entry",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "select": 1,
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "broker,supplier,item,name",
+ "sort_field": "posting_date",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "broker_name"
+}
