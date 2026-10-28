@@ -144,7 +144,6 @@ def run_tests():
         "posting_date": nowdate(),
         "company": company,
         "broker": broker_id,
-        "supplier": supplier_name,
         "item": item_a,
         "quantity": 100,  # 100 Qtl
         "bags": 200,      # 200 Bags
@@ -166,7 +165,6 @@ def run_tests():
         "posting_date": nowdate(),
         "company": company,
         "broker": broker_id,
-        "customer": customer_name,
         "item": item_b,
         "quantity": 50,  # 50 Qtl
         "bags": 100,     # 100 Bags

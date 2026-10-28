@@ -79,21 +79,6 @@
    "read_only": 1
   },
   {
-   "fieldname": "supplier",
-   "fieldtype": "Link",
-   "hidden": 1,
-   "label": "Supplier",
-   "options": "Supplier"
-  },
-  {
-   "fetch_from": "supplier.supplier_name",
-   "fieldname": "supplier_name",
-   "fieldtype": "Data",
-   "hidden": 1,
-   "label": "Supplier Name",
-   "read_only": 1
-  },
-  {
    "fieldname": "section_trade",
    "fieldtype": "Section Break",
    "label": "Trade & Commodity Details"
@@ -260,7 +245,7 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
- "search_fields": "broker,supplier,item,name",
+ "search_fields": "broker,item,name",
  "sort_field": "posting_date",
  "sort_order": "DESC",
  "states": [],

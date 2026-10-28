@@ -519,7 +519,7 @@ def save_purchase_entry(data=None):
     doc.posting_date = payload.get("posting_date") or nowdate()
     doc.company = payload.get("company") or frappe.defaults.get_user_default("company") or frappe.get_all("Company", pluck="name")[0]
     doc.broker = payload.get("broker")
-    doc.supplier = payload.get("supplier") or payload.get("broker")
+    doc.broker_name = payload.get("broker_name") or frappe.db.get_value("Brokers", doc.broker, "broker_name") or frappe.db.get_value("Broker", doc.broker, "broker_name")
     doc.item = payload.get("item")
     doc.quantity = flt(payload.get("quantity"))
     doc.bags = flt(payload.get("bags") or doc.quantity * 2.0)
@@ -532,6 +532,7 @@ def save_purchase_entry(data=None):
     doc.rate_source = payload.get("rate_source") or "Direct Entry"
     doc.remarks = payload.get("remarks")
 
+    doc.flags.ignore_permissions = True
     doc.insert()
     if payload.get("submit", True):
         doc.submit()
@@ -553,7 +554,7 @@ def save_sales_entry(data=None):
     doc.posting_date = payload.get("posting_date") or nowdate()
     doc.company = payload.get("company") or frappe.defaults.get_user_default("company") or frappe.get_all("Company", pluck="name")[0]
     doc.broker = payload.get("broker")
-    doc.customer = payload.get("customer") or payload.get("broker")
+    doc.broker_name = payload.get("broker_name") or frappe.db.get_value("Brokers", doc.broker, "broker_name") or frappe.db.get_value("Broker", doc.broker, "broker_name")
     doc.item = payload.get("item")
     doc.quantity = flt(payload.get("quantity"))
     doc.bags = flt(payload.get("bags") or doc.quantity * 2.0)
@@ -566,6 +567,7 @@ def save_sales_entry(data=None):
     doc.rate_source = payload.get("rate_source") or "Direct Entry"
     doc.remarks = payload.get("remarks")
 
+    doc.flags.ignore_permissions = True
     doc.insert()
     if payload.get("submit", True):
         doc.submit()
@@ -580,7 +582,6 @@ def get_entries(entry_type="Purchase", from_date=None, to_date=None, broker=None
     """
     entry_type = (entry_type or "Purchase").strip().capitalize()
     doctype = "Broker Purchase Entry" if entry_type == "Purchase" else "Broker Sales Entry"
-    party_field = "supplier" if entry_type == "Purchase" else "customer"
 
     filters = {}
     if from_date and to_date:
@@ -597,7 +598,7 @@ def get_entries(entry_type="Purchase", from_date=None, to_date=None, broker=None
         doctype,
         filters=filters,
         fields=[
-            "name", "posting_date", "broker", "broker_name", party_field,
+            "name", "posting_date", "broker", "broker_name",
             "item", "item_name", "quantity", "bags", "rate", "trade_amount",
             "brokerage_method", "brokerage_rate", "brokerage_amount", "status", "rate_source"
         ],

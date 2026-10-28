@@ -430,7 +430,7 @@ const promptSubmit = async () => {
       posting_date: form.posting_date,
       company: bootState.defaultCompany,
       broker: form.broker,
-      supplier: form.broker,
+      broker_name: form.broker_name,
       item: form.item,
       quantity: form.quantity,
       bags: form.bags,
