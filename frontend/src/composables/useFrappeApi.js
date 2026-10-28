@@ -97,15 +97,15 @@ export function useFrappeApi() {
       doctype,
       query,
       ...extra,
-    })
+    }, 'GET')
   }
 
   const getBrokerDetails = async (broker) => {
-    return await call('brokerage_module.brokerage_module.api.get_broker_details', { broker })
+    return await call('brokerage_module.brokerage_module.api.get_broker_details', { broker }, 'GET')
   }
 
   const saveBroker = async (data) => {
-    return await call('brokerage_module.brokerage_module.api.save_broker', { data })
+    return await call('brokerage_module.brokerage_module.api.save_broker', { data }, 'POST')
   }
 
   const getBrokerItemRate = async (broker, item, entryType = 'Purchase', postingDate = null) => {
@@ -114,34 +114,34 @@ export function useFrappeApi() {
       item,
       entry_type: entryType,
       posting_date: postingDate || bootState.today,
-    })
+    }, 'GET')
   }
 
   const saveRateConfiguration = async (data) => {
-    return await call('brokerage_module.brokerage_module.api.save_rate_configuration', { data })
+    return await call('brokerage_module.brokerage_module.api.save_rate_configuration', { data }, 'POST')
   }
 
   const getRateConfigurations = async (broker = null) => {
-    return await call('brokerage_module.brokerage_module.api.get_rate_configurations', { broker })
+    return await call('brokerage_module.brokerage_module.api.get_rate_configurations', { broker }, 'GET')
   }
 
   const savePurchaseEntry = async (data) => {
-    return await call('brokerage_module.brokerage_module.api.save_purchase_entry', { data })
+    return await call('brokerage_module.brokerage_module.api.save_purchase_entry', { data }, 'POST')
   }
 
   const saveSalesEntry = async (data) => {
-    return await call('brokerage_module.brokerage_module.api.save_sales_entry', { data })
+    return await call('brokerage_module.brokerage_module.api.save_sales_entry', { data }, 'POST')
   }
 
   const getEntries = async (entryType = 'Purchase', filters = {}) => {
     return await call('brokerage_module.brokerage_module.api.get_entries', {
       entry_type: entryType,
       ...filters,
-    })
+    }, 'GET')
   }
 
   const getDashboardSummary = async () => {
-    return await call('brokerage_module.brokerage_module.api.get_dashboard_summary')
+    return await call('brokerage_module.brokerage_module.api.get_dashboard_summary', {}, 'GET')
   }
 
   return {
@@ -160,3 +160,4 @@ export function useFrappeApi() {
     getDashboardSummary,
   }
 }
+

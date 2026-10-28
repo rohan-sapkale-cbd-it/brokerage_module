@@ -132,3 +132,4 @@ frappe.ui.form.on("Broker Sales Entry", {
         frm.set_value("brokerage_amount", brk_amt);
     }
 });
+

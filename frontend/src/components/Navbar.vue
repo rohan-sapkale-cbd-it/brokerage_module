@@ -67,3 +67,4 @@
 <script setup>
 import { bootState } from '../composables/useFrappeApi'
 </script>
+

@@ -25,3 +25,4 @@ class BrokerRateItem(Document):
             self.per_bag = 0
             if flt(self.per_quintal) < 0:
                 self.per_quintal = 0
+

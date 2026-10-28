@@ -12,8 +12,6 @@
   "column_break_parties",
   "broker",
   "broker_name",
-  "supplier",
-  "supplier_name",
   "section_trade",
   "item",
   "item_name",
@@ -83,16 +81,15 @@
   {
    "fieldname": "supplier",
    "fieldtype": "Link",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Supplier (Seller to Shop)",
-   "options": "Supplier",
-   "reqd": 1
+   "hidden": 1,
+   "label": "Supplier",
+   "options": "Supplier"
   },
   {
    "fetch_from": "supplier.supplier_name",
    "fieldname": "supplier_name",
    "fieldtype": "Data",
+   "hidden": 1,
    "label": "Supplier Name",
    "read_only": 1
   },

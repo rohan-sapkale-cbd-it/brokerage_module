@@ -52,3 +52,4 @@ class BrokerSalesEntry(Document):
 
     def on_cancel(self):
         self.status = "Cancelled"
+

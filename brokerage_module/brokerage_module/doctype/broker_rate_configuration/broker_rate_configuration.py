@@ -57,3 +57,4 @@ class BrokerRateConfiguration(Document):
                             rule_type, row.idx, row.item
                         )
                     )
+

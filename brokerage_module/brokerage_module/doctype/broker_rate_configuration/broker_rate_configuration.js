@@ -53,3 +53,4 @@ frappe.ui.form.on("Broker Rate Item", {
         }
     }
 });
+

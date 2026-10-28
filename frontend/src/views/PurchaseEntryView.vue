@@ -3,26 +3,44 @@
     <div class="page-header">
       <div>
         <div class="page-title">
-          <span>🛒 Purchase Entry (with Brokerage)</span>
+          <span>🛒 Purchase Voucher (Broker Trade)</span>
           <span class="badge badge-blue">Purchase Mode</span>
         </div>
         <div class="page-subtitle">
-          Record commodities purchased by the shop through a broker. Auto-applies configured brokerage rules.
+          Supplier &amp; Buyer are one entity: <strong>Broker</strong>. Showing only brokers where <strong>[Purchase]</strong> checkbox is selected.
         </div>
       </div>
 
-      <div style="display: flex; gap: 8px;">
+      <!-- Quick Toggle between Purchase & Sell -->
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <div style="background: #e2e8f0; padding: 3px; border-radius: 8px; display: inline-flex; gap: 4px;">
+          <button
+            type="button"
+            class="btn btn-sm"
+            style="background: #2563eb; color: #fff; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,0.15);"
+          >
+            🛒 Purchase
+          </button>
+          <router-link
+            to="/sell"
+            class="btn btn-sm"
+            style="background: transparent; color: #475569; font-weight: 600;"
+          >
+            🏷️ Sell (<kbd>F8</kbd>)
+          </router-link>
+        </div>
+
         <router-link to="/registers?type=Purchase" class="btn btn-secondary btn-sm">
-          📋 Purchase Register (<kbd>Alt+L</kbd>)
+          📋 Register (<kbd>Alt+L</kbd>)
         </router-link>
       </div>
     </div>
 
     <form @submit.prevent="promptSubmit">
-      <!-- Row 1: Header Meta -->
-      <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 16px;">
+      <!-- Row 1: Header Meta & The Sole Entity: Broker -->
+      <div class="form-grid" style="grid-template-columns: 1fr 1fr 2fr; margin-bottom: 20px;">
         <div class="form-group">
-          <label>Entry Date *</label>
+          <label>Voucher Date *</label>
           <input v-model="form.posting_date" type="date" required @change="onDateChange" />
         </div>
 
@@ -31,40 +49,41 @@
           <input type="text" :value="bootState.defaultCompany" readonly />
         </div>
 
+        <!-- Single Entity Field: Broker (Purchase) -->
         <div class="form-group">
-          <label>Broker (Purchase Applicable) *</label>
+          <label style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Broker Name (Purchase Entity) *</span>
+            <span class="badge badge-blue" style="font-size: 10.5px;">✓ Filter: Purchase Checkbox ON</span>
+          </label>
           <TypeaheadSelect
             v-model="form.broker"
             :label="form.broker_name"
-            placeholder="Search Purchase Broker..."
+            placeholder="Click to select Purchase Broker..."
             :fetch-fn="searchPurchaseBrokers"
             @change="onBrokerSelected"
           />
         </div>
       </div>
 
-      <!-- Row 2: Parties & Item -->
-      <div class="form-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 20px;">
-        <div class="form-group">
-          <label>Supplier (Seller to Shop) *</label>
-          <TypeaheadSelect
-            v-model="form.supplier"
-            :label="form.supplier_name"
-            placeholder="Search Supplier..."
-            :fetch-fn="searchSuppliers"
-            @change="(s) => { if(s) form.supplier_name = s.label || s.name }"
-          />
-        </div>
-
+      <!-- Row 2: Commodity Selection -->
+      <div class="form-grid" style="grid-template-columns: 2fr 1fr; margin-bottom: 20px;">
         <div class="form-group">
           <label>Commodity / Item *</label>
           <TypeaheadSelect
             v-model="form.item"
             :label="form.item_name"
-            placeholder="Search Commodity..."
+            placeholder="Search Commodity / Item..."
             :fetch-fn="searchItems"
             @change="onItemSelected"
           />
+        </div>
+
+        <div class="form-group">
+          <label>Active Broker Role</label>
+          <div style="padding: 9px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 13px; font-weight: 600; color: #1e40af; display: flex; align-items: center; gap: 8px;">
+            <span>🛒 Purchase Broker</span>
+            <span v-if="form.broker_name" style="font-size: 12px; color: #475569; font-weight: normal;">({{ form.broker_name }})</span>
+          </div>
         </div>
       </div>
 
@@ -72,7 +91,7 @@
       <div v-if="appliedRuleNotice" class="notice-banner notice-success">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="font-size: 16px;">⚡</span>
-          <span><strong>Auto-Fetched Broker Rule:</strong> {{ appliedRuleNotice }}</span>
+          <span><strong>Auto-Fetched Broker Terms:</strong> {{ appliedRuleNotice }}</span>
         </div>
         <span class="badge badge-green">Editable Override Allowed</span>
       </div>
@@ -131,7 +150,7 @@
           <div style="font-weight: 700; font-size: 14px; color: #0f172a;">
             💼 Brokerage Calculation Method &amp; Rate
           </div>
-          <span class="badge badge-blue">Selected: {{ form.brokerage_method }}</span>
+          <span class="badge badge-blue">Method: {{ form.brokerage_method }}</span>
         </div>
 
         <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr 1fr; align-items: end;">
@@ -213,7 +232,7 @@
           </div>
 
           <div style="text-align: right;">
-            <div style="font-size: 11px; text-transform: uppercase; color: #1e3a8a; font-weight: 700;">Total Trade Value</div>
+            <div style="font-size: 11px; text-transform: uppercase; color: #1e3a8a; font-weight: 700;">Total Purchase Trade Value</div>
             <div style="font-size: 20px; font-weight: 800; color: #1e40af;">
               ₹ {{ formatCurrency(calculatedTradeAmount) }}
             </div>
@@ -223,8 +242,8 @@
 
       <!-- Remarks -->
       <div class="form-group" style="margin-bottom: 24px;">
-        <label>Remarks / Contract Notes</label>
-        <textarea v-model="form.remarks" rows="2" placeholder="Optional notes..."></textarea>
+        <label>Remarks / Notes</label>
+        <textarea v-model="form.remarks" rows="2" placeholder="Optional trade notes..."></textarea>
       </div>
 
       <!-- Action Buttons -->
@@ -233,7 +252,7 @@
           Reset Form
         </button>
         <button type="submit" class="btn btn-primary" :disabled="isSubmitting" style="padding: 10px 24px; font-size: 14px;">
-          {{ isSubmitting ? 'Saving...' : '💾 Submit Purchase Entry' }}
+          {{ isSubmitting ? 'Saving...' : '💾 Submit Purchase Voucher' }}
           <kbd style="background: rgba(255,255,255,0.25); color: #fff; border: none;">Ctrl+Enter</kbd>
         </button>
       </div>
@@ -257,8 +276,6 @@ const form = reactive({
   posting_date: bootState.today || new Date().toISOString().split('T')[0],
   broker: '',
   broker_name: '',
-  supplier: '',
-  supplier_name: '',
   item: '',
   item_name: '',
   quantity: 100,
@@ -296,12 +313,9 @@ const calculatedBrokerageAmount = computed(() => {
   return 0
 })
 
+// STRICT FILTER: Returns ONLY brokers where applicable_for_purchase == 1
 const searchPurchaseBrokers = async (q) => {
   return await searchEntities('Broker', q, { for_purchase: 1 })
-}
-
-const searchSuppliers = async (q) => {
-  return await searchEntities('Supplier', q)
 }
 
 const searchItems = async (q) => {
@@ -310,7 +324,7 @@ const searchItems = async (q) => {
 
 const onBrokerSelected = (item) => {
   if (item) {
-    form.broker_name = item.label || item.name
+    form.broker_name = item.label || item.broker_name || item.name
     triggerAutoRateFetch()
   } else {
     form.broker = ''
@@ -334,7 +348,7 @@ const onDateChange = () => {
   triggerAutoRateFetch()
 }
 
-// Core Requirement: Auto-fetch broker rule for Item A & Broker
+// Auto-fetch broker rule for Purchase
 const triggerAutoRateFetch = async () => {
   if (!form.broker || !form.item) return
 
@@ -377,9 +391,7 @@ const onMethodChanged = () => {
   }
 }
 
-const recalculate = () => {
-  // Triggers reactivity
-}
+const recalculate = () => {}
 
 const formatCurrency = (val) => {
   const n = Number(val) || 0
@@ -389,8 +401,6 @@ const formatCurrency = (val) => {
 const resetForm = () => {
   form.broker = ''
   form.broker_name = ''
-  form.supplier = ''
-  form.supplier_name = ''
   form.item = ''
   form.item_name = ''
   form.quantity = 100
@@ -409,10 +419,6 @@ const promptSubmit = async () => {
     alert('Please select a purchase broker.')
     return
   }
-  if (!form.supplier) {
-    alert('Please select a supplier.')
-    return
-  }
   if (!form.item) {
     alert('Please select a commodity/item.')
     return
@@ -424,7 +430,7 @@ const promptSubmit = async () => {
       posting_date: form.posting_date,
       company: bootState.defaultCompany,
       broker: form.broker,
-      supplier: form.supplier,
+      supplier: form.broker,
       item: form.item,
       quantity: form.quantity,
       bags: form.bags,
@@ -440,7 +446,7 @@ const promptSubmit = async () => {
     }
 
     const res = await savePurchaseEntry(payload)
-    alert(`✅ Purchase Entry ${res.name} submitted successfully! Total Brokerage: ₹${formatCurrency(res.brokerage_amount)}`)
+    alert(`✅ Purchase Voucher ${res.name} submitted successfully! Broker: ${form.broker_name || form.broker}, Brokerage: ₹${formatCurrency(res.brokerage_amount)}`)
     resetForm()
     router.push('/registers?type=Purchase')
   } catch (e) {
@@ -450,7 +456,6 @@ const promptSubmit = async () => {
   }
 }
 
-// Global keyboard shortcut: Ctrl+Enter to submit
 onMounted(() => {
   window.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {

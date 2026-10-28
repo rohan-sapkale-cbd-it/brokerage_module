@@ -13,3 +13,4 @@ def get_context(context):
     frappe.db.commit()
     context.boot = get_boot()
     return context
+

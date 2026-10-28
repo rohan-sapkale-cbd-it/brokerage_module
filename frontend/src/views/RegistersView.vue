@@ -96,9 +96,8 @@
           <tr>
             <th>Entry ID</th>
             <th>Date</th>
-            <th>Broker</th>
-            <th>{{ currentType === 'Purchase' ? 'Supplier' : 'Customer' }}</th>
-            <th>Item</th>
+            <th>Broker (Party)</th>
+            <th>Commodity / Item</th>
             <th style="text-align: right;">Qty (Qtl)</th>
             <th style="text-align: right;">Bags</th>
             <th style="text-align: right;">Rate (₹)</th>
@@ -123,7 +122,6 @@
             </td>
             <td>{{ r.posting_date }}</td>
             <td style="font-weight: 600;">{{ r.broker_name || r.broker }}</td>
-            <td>{{ r.supplier || r.customer }}</td>
             <td style="font-weight: 600;">{{ r.item_name || r.item }}</td>
             <td style="text-align: right;">{{ formatNumber(r.quantity) }}</td>
             <td style="text-align: right;">{{ formatNumber(r.bags) }}</td>
@@ -234,3 +232,4 @@ onMounted(() => {
   loadData()
 })
 </script>
+

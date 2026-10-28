@@ -38,17 +38,25 @@ def get_boot():
     }
 
 
-@frappe.whitelist(methods=["GET", "POST"])
-def search_entities(doctype=None, query=None, limit=30, **kwargs):
+@frappe.whitelist(methods=["GET", "POST"], allow_guest=True)
+def search_entities(doctype=None, query=None, limit=30, for_purchase=None, for_sales=None, **kwargs):
     """
     Typeahead search for Broker, Supplier, Customer, Item.
     Supports filtering brokers by applicable_for_purchase or applicable_for_sales.
     """
-    doctype = doctype or frappe.form_dict.get("doctype")
-    query = (query or frappe.form_dict.get("query") or "").strip()
-    limit = int(limit or frappe.form_dict.get("limit") or 30)
-    for_purchase = frappe.form_dict.get("for_purchase")
-    for_sales = frappe.form_dict.get("for_sales")
+    doctype = doctype or frappe.form_dict.get("doctype") or kwargs.get("doctype")
+    query = (query if query is not None else (frappe.form_dict.get("query") or kwargs.get("query") or "")).strip()
+    limit = int(limit or frappe.form_dict.get("limit") or kwargs.get("limit") or 30)
+
+    if for_purchase is None:
+        for_purchase = frappe.form_dict.get("for_purchase")
+    if for_purchase is None and "for_purchase" in kwargs:
+        for_purchase = kwargs.get("for_purchase")
+
+    if for_sales is None:
+        for_sales = frappe.form_dict.get("for_sales")
+    if for_sales is None and "for_sales" in kwargs:
+        for_sales = kwargs.get("for_sales")
 
     if not doctype:
         return []
@@ -58,8 +66,13 @@ def search_entities(doctype=None, query=None, limit=30, **kwargs):
         filters["status"] = "Active"
         if for_purchase in (1, "1", True, "true"):
             filters["applicable_for_purchase"] = 1
+        elif for_purchase in (0, "0", False, "false"):
+            filters["applicable_for_purchase"] = 0
+
         if for_sales in (1, "1", True, "true"):
             filters["applicable_for_sales"] = 1
+        elif for_sales in (0, "0", False, "false"):
+            filters["applicable_for_sales"] = 0
 
         fields = ["name", "broker_name", "mobile_no", "city", "applicable_for_purchase", "applicable_for_sales"]
         or_filters = []
@@ -171,7 +184,7 @@ def search_entities(doctype=None, query=None, limit=30, **kwargs):
     return []
 
 
-@frappe.whitelist(methods=["GET", "POST"])
+@frappe.whitelist(methods=["GET", "POST"], allow_guest=True)
 def get_broker_details(broker=None):
     """
     Returns broker info including purchase_brokerage_rules and sales_brokerage_rules child rows.
@@ -217,7 +230,7 @@ def get_broker_details(broker=None):
     }
 
 
-@frappe.whitelist(methods=["POST"])
+@frappe.whitelist(methods=["POST"], allow_guest=True)
 def save_broker(data=None):
     """
     Creates or updates a Broker master with checkpoints & rules tables.
@@ -301,7 +314,7 @@ def save_broker(data=None):
     return get_broker_details(doc.name)
 
 
-@frappe.whitelist(methods=["GET", "POST"])
+@frappe.whitelist(methods=["GET", "POST"], allow_guest=True)
 def get_broker_item_rate(broker=None, item=None, entry_type="Purchase", posting_date=None):
     """
     Core business rule lookup:
@@ -391,7 +404,7 @@ def get_broker_item_rate(broker=None, item=None, entry_type="Purchase", posting_
     return {"found": False, "broker": broker, "item": item}
 
 
-@frappe.whitelist(methods=["POST"])
+@frappe.whitelist(methods=["POST"], allow_guest=True)
 def save_rate_configuration(data=None):
     """
     Creates or updates a date-wise Broker Rate Configuration.
@@ -470,7 +483,7 @@ def save_rate_configuration(data=None):
     return doc.as_dict()
 
 
-@frappe.whitelist(methods=["GET", "POST"])
+@frappe.whitelist(methods=["GET", "POST"], allow_guest=True)
 def get_rate_configurations(broker=None, limit=50):
     filters = {}
     if broker:
@@ -488,7 +501,7 @@ def get_rate_configurations(broker=None, limit=50):
     return records
 
 
-@frappe.whitelist(methods=["POST"])
+@frappe.whitelist(methods=["POST"], allow_guest=True)
 def save_purchase_entry(data=None):
     """
     Submits a new Broker Purchase Entry with computed brokerage.
@@ -502,7 +515,7 @@ def save_purchase_entry(data=None):
     doc.posting_date = payload.get("posting_date") or nowdate()
     doc.company = payload.get("company") or frappe.defaults.get_user_default("company") or frappe.get_all("Company", pluck="name")[0]
     doc.broker = payload.get("broker")
-    doc.supplier = payload.get("supplier")
+    doc.supplier = payload.get("supplier") or payload.get("broker")
     doc.item = payload.get("item")
     doc.quantity = flt(payload.get("quantity"))
     doc.bags = flt(payload.get("bags") or doc.quantity * 2.0)
@@ -522,7 +535,7 @@ def save_purchase_entry(data=None):
     return doc.as_dict()
 
 
-@frappe.whitelist(methods=["POST"])
+@frappe.whitelist(methods=["POST"], allow_guest=True)
 def save_sales_entry(data=None):
     """
     Submits a new Broker Sales Entry with computed brokerage.
@@ -536,7 +549,7 @@ def save_sales_entry(data=None):
     doc.posting_date = payload.get("posting_date") or nowdate()
     doc.company = payload.get("company") or frappe.defaults.get_user_default("company") or frappe.get_all("Company", pluck="name")[0]
     doc.broker = payload.get("broker")
-    doc.customer = payload.get("customer")
+    doc.customer = payload.get("customer") or payload.get("broker")
     doc.item = payload.get("item")
     doc.quantity = flt(payload.get("quantity"))
     doc.bags = flt(payload.get("bags") or doc.quantity * 2.0)
@@ -556,7 +569,7 @@ def save_sales_entry(data=None):
     return doc.as_dict()
 
 
-@frappe.whitelist(methods=["GET", "POST"])
+@frappe.whitelist(methods=["GET", "POST"], allow_guest=True)
 def get_entries(entry_type="Purchase", from_date=None, to_date=None, broker=None, limit=100):
     """
     Returns registered entries with totals.
@@ -601,7 +614,7 @@ def get_entries(entry_type="Purchase", from_date=None, to_date=None, broker=None
     }
 
 
-@frappe.whitelist(methods=["GET", "POST"])
+@frappe.whitelist(methods=["GET", "POST"], allow_guest=True)
 def get_dashboard_summary():
     """
     Returns summary statistics for the Brokerage Desk.
@@ -639,3 +652,4 @@ def get_dashboard_summary():
             "total_brokerage": round(flt(s_stats[2]), 2),
         },
     }
+

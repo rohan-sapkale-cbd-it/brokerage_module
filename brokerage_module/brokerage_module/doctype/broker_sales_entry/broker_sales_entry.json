@@ -12,8 +12,6 @@
   "column_break_parties",
   "broker",
   "broker_name",
-  "customer",
-  "customer_name",
   "section_trade",
   "item",
   "item_name",
@@ -83,16 +81,15 @@
   {
    "fieldname": "customer",
    "fieldtype": "Link",
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "Customer (Buyer from Shop)",
-   "options": "Customer",
-   "reqd": 1
+   "hidden": 1,
+   "label": "Customer",
+   "options": "Customer"
   },
   {
    "fetch_from": "customer.customer_name",
    "fieldname": "customer_name",
    "fieldtype": "Data",
+   "hidden": 1,
    "label": "Customer Name",
    "read_only": 1
   },
