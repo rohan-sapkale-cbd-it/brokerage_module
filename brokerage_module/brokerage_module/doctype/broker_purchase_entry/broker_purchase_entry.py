@@ -15,7 +15,9 @@ class BrokerPurchaseEntry(Document):
     def validate_broker_eligibility(self):
         if not self.broker:
             frappe.throw(_("Please select a Broker."))
-        is_purchase = frappe.db.get_value("Broker", self.broker, "applicable_for_purchase")
+        is_purchase = frappe.db.get_value("Brokers", self.broker, "applicable_for_purchase")
+        if is_purchase is None:
+            is_purchase = frappe.db.get_value("Broker", self.broker, "applicable_for_purchase")
         if not is_purchase:
             frappe.throw(
                 _("Broker {0} is not marked as Applicable for Purchase.").format(self.broker_name or self.broker)

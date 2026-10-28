@@ -4,7 +4,7 @@
 frappe.ui.form.on("Broker Rate Configuration", {
     broker: function(frm) {
         if (!frm.doc.broker) return;
-        frappe.db.get_value("Broker", frm.doc.broker, ["applicable_for_purchase", "applicable_for_sales", "broker_name"], (r) => {
+        frappe.db.get_value("Brokers", frm.doc.broker, ["applicable_for_purchase", "applicable_for_sales", "broker_name"], (r) => {
             if (r) {
                 frm.set_value("applicable_for_purchase", r.applicable_for_purchase || 0);
                 frm.set_value("applicable_for_sales", r.applicable_for_sales || 0);

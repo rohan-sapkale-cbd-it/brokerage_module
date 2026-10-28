@@ -256,7 +256,7 @@ const form = reactive({
 })
 
 const searchBrokers = async (q) => {
-  return await searchEntities('Broker', q)
+  return await searchEntities('Brokers', q)
 }
 
 const searchItems = async (q) => {

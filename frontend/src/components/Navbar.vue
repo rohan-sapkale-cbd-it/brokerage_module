@@ -53,12 +53,12 @@
       </div>
 
       <a
-        href="/app"
+        href="/app/brokerage-module"
         class="btn btn-secondary btn-sm"
         style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #fff;"
-        title="Return to Frappe Desk"
+        title="Open Brokerage Module Workspace in ERPNext Desk"
       >
-        <span>↩ Frappe Desk</span>
+        <span>🏛️ Brokerage Workspace</span>
       </a>
     </div>
   </header>

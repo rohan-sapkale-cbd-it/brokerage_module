@@ -181,7 +181,7 @@ const switchType = (type) => {
 }
 
 const searchBrokers = async (q) => {
-  return await searchEntities('Broker', q)
+  return await searchEntities('Brokers', q)
 }
 
 const onBrokerFilter = (b) => {

@@ -135,7 +135,7 @@ const isLoading = ref(false)
 const loadBrokers = async () => {
   isLoading.value = true
   try {
-    const list = await searchEntities('Broker', '', { limit: 100 })
+    const list = await searchEntities('Brokers', '', { limit: 100 })
     // Fetch counts and full details
     const fullList = []
     for (const b of list) {

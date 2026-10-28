@@ -1,0 +1,198 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "BRK-.YYYY.-.#####",
+ "creation": "2026-10-28 11:55:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "broker_name",
+  "mobile_no",
+  "column_break_contact",
+  "email",
+  "status",
+  "section_address",
+  "city",
+  "state",
+  "column_break_gst",
+  "gst_number",
+  "address",
+  "section_checkpoints",
+  "applicable_for_purchase",
+  "applicable_for_sales",
+  "section_purchase_rules",
+  "purchase_brokerage_rules",
+  "section_sales_rules",
+  "sales_brokerage_rules"
+ ],
+ "fields": [
+  {
+   "fieldname": "broker_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Broker Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "mobile_no",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Mobile No"
+  },
+  {
+   "fieldname": "column_break_contact",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email"
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Active\nInactive",
+   "reqd": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_address",
+   "fieldtype": "Section Break",
+   "label": "Address & Tax Details"
+  },
+  {
+   "fieldname": "city",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "City"
+  },
+  {
+   "fieldname": "state",
+   "fieldtype": "Data",
+   "label": "State"
+  },
+  {
+   "fieldname": "column_break_gst",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "gst_number",
+   "fieldtype": "Data",
+   "label": "GST Number"
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  },
+  {
+   "fieldname": "section_checkpoints",
+   "fieldtype": "Section Break",
+   "label": "Broker Operational Roles (Checkpoints)"
+  },
+  {
+   "default": "1",
+   "fieldname": "applicable_for_purchase",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Applicable for Purchase"
+  },
+  {
+   "default": "1",
+   "fieldname": "applicable_for_sales",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Applicable for Sell"
+  },
+  {
+   "depends_on": "eval:doc.applicable_for_purchase==1",
+   "fieldname": "section_purchase_rules",
+   "fieldtype": "Section Break",
+   "label": "Purchase Brokerage Rules"
+  },
+  {
+   "depends_on": "eval:doc.applicable_for_purchase==1",
+   "fieldname": "purchase_brokerage_rules",
+   "fieldtype": "Table",
+   "label": "Purchase Brokerage Rules",
+   "options": "Broker Rate Item"
+  },
+  {
+   "depends_on": "eval:doc.applicable_for_sales==1",
+   "fieldname": "section_sales_rules",
+   "fieldtype": "Section Break",
+   "label": "Sell Brokerage Rules"
+  },
+  {
+   "depends_on": "eval:doc.applicable_for_sales==1",
+   "fieldname": "sales_brokerage_rules",
+   "fieldtype": "Table",
+   "label": "Sell Brokerage Rules",
+   "options": "Broker Rate Item"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [
+  {
+   "link_doctype": "Broker Purchase Entry",
+   "link_fieldname": "broker"
+  },
+  {
+   "link_doctype": "Broker Sales Entry",
+   "link_fieldname": "broker"
+  },
+  {
+   "link_doctype": "Broker Rate Configuration",
+   "link_fieldname": "broker"
+  }
+ ],
+ "modified": "2026-10-28 11:55:00.000000",
+ "modified_by": "Administrator",
+ "module": "Brokerage Module",
+ "name": "Brokers",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "All",
+   "share": 0,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "broker_name,mobile_no,city",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "broker_name"
+}
+

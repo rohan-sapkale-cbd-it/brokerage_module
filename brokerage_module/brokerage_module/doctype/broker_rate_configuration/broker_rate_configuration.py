@@ -16,11 +16,18 @@ class BrokerRateConfiguration(Document):
     def sync_broker_flags(self):
         if self.broker:
             flags = frappe.db.get_value(
-                "Broker",
+                "Brokers",
                 self.broker,
                 ["applicable_for_purchase", "applicable_for_sales", "broker_name"],
                 as_dict=True,
             )
+            if not flags:
+                flags = frappe.db.get_value(
+                    "Broker",
+                    self.broker,
+                    ["applicable_for_purchase", "applicable_for_sales", "broker_name"],
+                    as_dict=True,
+                )
             if flags:
                 self.applicable_for_purchase = flags.get("applicable_for_purchase") or 0
                 self.applicable_for_sales = flags.get("applicable_for_sales") or 0

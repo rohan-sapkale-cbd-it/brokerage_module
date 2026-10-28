@@ -1,0 +1,139 @@
+{
+ "app": "brokerage_module",
+ "charts": [],
+ "content": "[{\"id\":\"header_brokerage\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Brokerage Management</b></span>\",\"col\":12}},{\"id\":\"card_masters\",\"type\":\"card\",\"data\":{\"card_name\":\"Masters & Rates\",\"col\":4}},{\"id\":\"card_vouchers\",\"type\":\"card\",\"data\":{\"card_name\":\"Transactions\",\"col\":4}},{\"id\":\"card_registers\",\"type\":\"card\",\"data\":{\"card_name\":\"Fast Desk & Tools\",\"col\":4}}]",
+ "creation": "2026-10-28 11:55:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "hide_custom": 0,
+ "icon": "calculator",
+ "idx": 0,
+ "indicator_color": "blue",
+ "is_hidden": 0,
+ "label": "Brokerage Module",
+ "link_type": "DocType",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Masters & Rates",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Brokers",
+   "link_count": 0,
+   "link_to": "Brokers",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Broker Rate Configuration",
+   "link_count": 0,
+   "link_to": "Broker Rate Configuration",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Transactions",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Broker Purchase Entry",
+   "link_count": 0,
+   "link_to": "Broker Purchase Entry",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Broker Sales Entry",
+   "link_count": 0,
+   "link_to": "Broker Sales Entry",
+   "link_type": "DocType",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Fast Desk & Tools",
+   "link_count": 1,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Open Brokerage Desk (Vue SPA)",
+   "link_count": 0,
+   "link_to": "brokerage-desk",
+   "link_type": "Page",
+   "onboard": 1,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-10-28 11:55:00.000000",
+ "modified_by": "Administrator",
+ "module": "Brokerage Module",
+ "name": "Brokerage Module",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 9.0,
+ "shortcuts": [
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "Brokers",
+   "link_to": "Brokers",
+   "type": "DocType"
+  },
+  {
+   "color": "Green",
+   "doc_view": "List",
+   "label": "Purchase Entries",
+   "link_to": "Broker Purchase Entry",
+   "type": "DocType"
+  },
+  {
+   "color": "Orange",
+   "doc_view": "List",
+   "label": "Sales Entries",
+   "link_to": "Broker Sales Entry",
+   "type": "DocType"
+  },
+  {
+   "color": "Purple",
+   "doc_view": "List",
+   "label": "Rate Cards",
+   "link_to": "Broker Rate Configuration",
+   "type": "DocType"
+  }
+ ],
+ "title": "Brokerage Module",
+ "type": "Workspace"
+}
+

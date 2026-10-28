@@ -315,7 +315,7 @@ const calculatedBrokerageAmount = computed(() => {
 
 // STRICT FILTER: Returns ONLY brokers where applicable_for_purchase == 1
 const searchPurchaseBrokers = async (q) => {
-  return await searchEntities('Broker', q, { for_purchase: 1 })
+  return await searchEntities('Brokers', q, { for_purchase: 1 })
 }
 
 const searchItems = async (q) => {

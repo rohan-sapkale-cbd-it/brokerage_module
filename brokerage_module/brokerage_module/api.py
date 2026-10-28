@@ -62,7 +62,8 @@ def search_entities(doctype=None, query=None, limit=30, for_purchase=None, for_s
         return []
 
     filters = {}
-    if doctype == "Broker":
+    if doctype in ("Broker", "Brokers"):
+        target_doctype = "Brokers" if frappe.db.count("Brokers") > 0 else "Broker"
         filters["status"] = "Active"
         if for_purchase in (1, "1", True, "true"):
             filters["applicable_for_purchase"] = 1
@@ -85,7 +86,7 @@ def search_entities(doctype=None, query=None, limit=30, for_purchase=None, for_s
             ]
 
         records = frappe.get_all(
-            "Broker",
+            target_doctype,
             filters=filters,
             or_filters=or_filters if query else None,
             fields=fields,
@@ -193,7 +194,8 @@ def get_broker_details(broker=None):
     if not broker_id:
         frappe.throw(_("Broker identifier is required."))
 
-    doc = frappe.get_doc("Broker", broker_id)
+    target_dt = "Brokers" if frappe.db.exists("Brokers", broker_id) else "Broker"
+    doc = frappe.get_doc(target_dt, broker_id)
     return {
         "name": doc.name,
         "broker_name": doc.broker_name,
@@ -233,7 +235,7 @@ def get_broker_details(broker=None):
 @frappe.whitelist(methods=["POST"], allow_guest=True)
 def save_broker(data=None):
     """
-    Creates or updates a Broker master with checkpoints & rules tables.
+    Creates or updates a Broker master in the dedicated Brokers doctype (Brokerage Module).
     """
     if isinstance(data, str):
         payload = json.loads(data)
@@ -241,10 +243,12 @@ def save_broker(data=None):
         payload = data or frappe.form_dict
 
     name = payload.get("name")
-    if name and frappe.db.exists("Broker", name):
+    if name and frappe.db.exists("Brokers", name):
+        doc = frappe.get_doc("Brokers", name)
+    elif name and frappe.db.exists("Broker", name):
         doc = frappe.get_doc("Broker", name)
     else:
-        doc = frappe.new_doc("Broker")
+        doc = frappe.new_doc("Brokers")
 
     doc.broker_name = payload.get("broker_name")
     doc.mobile_no = payload.get("mobile_no")
@@ -619,9 +623,10 @@ def get_dashboard_summary():
     """
     Returns summary statistics for the Brokerage Desk.
     """
-    total_brokers = frappe.db.count("Broker", {"status": "Active"})
-    purchase_brokers = frappe.db.count("Broker", {"status": "Active", "applicable_for_purchase": 1})
-    sales_brokers = frappe.db.count("Broker", {"status": "Active", "applicable_for_sales": 1})
+    broker_dt = "Brokers" if frappe.db.count("Brokers") > 0 else "Broker"
+    total_brokers = frappe.db.count(broker_dt, {"status": "Active"})
+    purchase_brokers = frappe.db.count(broker_dt, {"status": "Active", "applicable_for_purchase": 1})
+    sales_brokers = frappe.db.count(broker_dt, {"status": "Active", "applicable_for_sales": 1})
 
     p_stats = frappe.db.sql("""
         SELECT COUNT(*), COALESCE(SUM(trade_amount), 0), COALESCE(SUM(brokerage_amount), 0)
@@ -652,4 +657,73 @@ def get_dashboard_summary():
             "total_brokerage": round(flt(s_stats[2]), 2),
         },
     }
+
+
+@frappe.whitelist(methods=["POST", "GET"], allow_guest=True)
+def sync_legacy_brokers():
+    """
+    Copies any legacy Broker records from sugar_module's Broker into brokerage_module's dedicated Brokers doctype.
+    """
+    synced = 0
+    if not frappe.db.exists("DocType", "Broker"):
+        return {"synced": 0, "total": frappe.db.count("Brokers")}
+
+    brokers = frappe.get_all("Broker", fields=["*"])
+    for b in brokers:
+        if not frappe.db.exists("Brokers", b.name):
+            new_b = frappe.new_doc("Brokers")
+            new_b.name = b.name
+            new_b.broker_name = b.broker_name
+            new_b.mobile_no = b.mobile_no or ""
+            new_b.email = b.email or ""
+            new_b.address = b.address or ""
+            new_b.city = b.city or ""
+            new_b.state = b.state or ""
+            new_b.gst_number = b.gst_number or ""
+            new_b.status = b.status or "Active"
+            new_b.applicable_for_purchase = b.applicable_for_purchase
+            new_b.applicable_for_sales = b.applicable_for_sales
+
+            # purchase rules
+            p_rules = frappe.get_all(
+                "Broker Rate Item",
+                filters={"parent": b.name, "parenttype": "Broker", "parentfield": "purchase_brokerage_rules"},
+                fields=["*"],
+            )
+            for r in p_rules:
+                new_b.append("purchase_brokerage_rules", {
+                    "item": r.item,
+                    "item_name": r.item_name,
+                    "brokerage_method": r.brokerage_method,
+                    "percentage": r.percentage,
+                    "per_bag": r.per_bag,
+                    "per_quintal": r.per_quintal,
+                    "remarks": r.remarks,
+                })
+
+            # sales rules
+            s_rules = frappe.get_all(
+                "Broker Rate Item",
+                filters={"parent": b.name, "parenttype": "Broker", "parentfield": "sales_brokerage_rules"},
+                fields=["*"],
+            )
+            for r in s_rules:
+                new_b.append("sales_brokerage_rules", {
+                    "item": r.item,
+                    "item_name": r.item_name,
+                    "brokerage_method": r.brokerage_method,
+                    "percentage": r.percentage,
+                    "per_bag": r.per_bag,
+                    "per_quintal": r.per_quintal,
+                    "remarks": r.remarks,
+                })
+
+            new_b.flags.ignore_permissions = True
+            new_b.flags.ignore_mandatory = True
+            new_b.insert(set_name=b.name)
+            synced += 1
+
+    frappe.db.commit()
+    return {"synced": synced, "total_brokers": frappe.db.count("Brokers")}
+
 
