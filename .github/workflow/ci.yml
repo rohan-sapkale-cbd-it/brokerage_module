@@ -31,7 +31,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: "22"
 
       - name: Install Frontend Dependencies
         working-directory: frontend
@@ -53,21 +53,24 @@ jobs:
         python-version: ['3.12']
 
     services:
+      mariadb:
+        image: mariadb:10.6
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --host localhost --user root --password=root"
+          --health-interval=5s --health-timeout=2s --health-retries=15
       redis-cache:
-        image: redis:alpine
+        image: redis:6.2-alpine
         ports:
           - 13000:6379
       redis-queue:
-        image: redis:alpine
+        image: redis:6.2-alpine
         ports:
           - 11000:6379
-      mariadb:
-        image: mariadb:10.11
-        env:
-          MYSQL_ROOT_PASSWORD: root
-        ports:
-          - 3306:3306
-        options: --health-cmd="mariadb-admin ping" --health-interval=5s --health-timeout=2s --health-retries=3
 
     steps:
       - name: Checkout Code
@@ -81,7 +84,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: "22"
 
       - name: Install MariaDB Client
         run: |
@@ -96,25 +99,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Setup Frappe Bench
-        run: |
-          pip install frappe-bench
-          bench init --skip-redis-config-generation --skip-assets --python "$(which python)" ~/frappe-bench
-
-      - name: Install Brokerage Module App
-        working-directory: /home/runner/frappe-bench
-        run: |
-          bench get-app brokerage_module $GITHUB_WORKSPACE
-          bench setup requirements --dev
-          bench new-site --db-root-password root --admin-password admin test_site
-          bench --site test_site install-app brokerage_module
-        env:
-          CI: 'Yes'
+      - name: Install bench & Setup test site
+        run: bash ${GITHUB_WORKSPACE}/.github/helper/install.sh
 
       - name: Run Backend Integration & Voucher Tests
         working-directory: /home/runner/frappe-bench
         run: |
-          bench --site test_site set-config allow_tests true
           bench --site test_site execute brokerage_module.test_brokerage_backend.run_tests
-        env:
-          TYPE: server
