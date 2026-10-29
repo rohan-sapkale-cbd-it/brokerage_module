@@ -1,0 +1,117 @@
+services:
+  # ----------------------------------------------------------------------------
+  # MariaDB Database Service
+  # ----------------------------------------------------------------------------
+  db:
+    image: mariadb:10.6
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --skip-innodb-read-only-compressed
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+    volumes:
+      - db-data:/var/lib/mysql
+
+  # ----------------------------------------------------------------------------
+  # Redis Cache & Queue Services
+  # ----------------------------------------------------------------------------
+  redis-cache:
+    image: redis:6.2-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-cache-data:/data
+
+  redis-queue:
+    image: redis:6.2-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-queue-data:/data
+
+  # ----------------------------------------------------------------------------
+  # Site / Environment Configurator (One-time Init)
+  # ----------------------------------------------------------------------------
+  configurator:
+    image: brokerage-module:latest
+    restart: "no"
+    depends_on:
+      - db
+      - redis-cache
+      - redis-queue
+    entrypoint: ["bash", "-c"]
+    command:
+      - >
+        bench set-config -g db_host db &&
+        bench set-config -g db_port 3306 &&
+        bench set-config -g redis_cache redis://redis-cache:6379 &&
+        bench set-config -g redis_queue redis://redis-queue:6379 &&
+        printf "frappe\nerpnext\nbrokerage_module\n" > /home/frappe/frappe-bench/sites/apps.txt
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+
+  # ----------------------------------------------------------------------------
+  # Brokerage Module + ERPNext Backend Service
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: brokerage-module:latest
+    restart: unless-stopped
+    command: bench serve --port 8000
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+      db:
+        condition: service_started
+      redis-cache:
+        condition: service_started
+      redis-queue:
+        condition: service_started
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - REDIS_CACHE=redis://redis-cache:6379
+      - REDIS_QUEUE=redis://redis-queue:6379
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+    ports:
+      - "8006:8000"
+
+  # ----------------------------------------------------------------------------
+  # Background Worker (Queue Processing)
+  # ----------------------------------------------------------------------------
+  worker:
+    image: brokerage-module:latest
+    restart: unless-stopped
+    command: bench worker --queue default,short,long
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+      backend:
+        condition: service_started
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+
+  # ----------------------------------------------------------------------------
+  # Scheduler Service
+  # ----------------------------------------------------------------------------
+  scheduler:
+    image: brokerage-module:latest
+    restart: unless-stopped
+    command: bench schedule
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+      backend:
+        condition: service_started
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+
+volumes:
+  db-data:
+  redis-cache-data:
+  redis-queue-data:
+  sites:
