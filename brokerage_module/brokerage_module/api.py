@@ -307,7 +307,7 @@ def search_entities(doctype=None, query=None, limit=30, for_purchase=None, for_s
 
     filters = {}
     if doctype in ("Broker", "Brokers"):
-        target_doctype = "Brokers" if frappe.db.count("Brokers") > 0 else "Broker"
+        target_doctype = "Brokers" if frappe.db.exists("DocType", "Brokers") else "Broker"
         filters["status"] = "Active"
         if for_purchase in (1, "1", True, "true"):
             filters["applicable_for_purchase"] = 1
@@ -467,7 +467,7 @@ def get_broker_details(broker=None):
     if not broker_id:
         frappe.throw(_("Broker identifier is required."))
 
-    target_dt = "Brokers" if frappe.db.exists("Brokers", broker_id) else "Broker"
+    target_dt = "Brokers" if (frappe.db.exists("Brokers", broker_id) or not frappe.db.exists("DocType", "Broker")) else "Broker"
     doc = frappe.get_doc(target_dt, broker_id)
     return {
         "name": doc.name,
@@ -910,9 +910,16 @@ def save_purchase_entry(data=None):
 
     doc = frappe.new_doc("Broker Purchase Entry")
     doc.posting_date = payload.get("posting_date") or nowdate()
-    doc.company = payload.get("company") or frappe.defaults.get_user_default("company") or frappe.get_all("Company", pluck="name")[0]
+    comp = payload.get("company") or frappe.defaults.get_user_default("company")
+    if not comp and frappe.db.exists("DocType", "Company"):
+        comps = frappe.get_all("Company", pluck="name")
+        comp = comps[0] if comps else None
+    doc.company = comp or "Default Company"
     doc.broker = payload.get("broker")
-    doc.broker_name = payload.get("broker_name") or frappe.db.get_value("Brokers", doc.broker, "broker_name") or frappe.db.get_value("Broker", doc.broker, "broker_name")
+    b_name = payload.get("broker_name") or frappe.db.get_value("Brokers", doc.broker, "broker_name")
+    if not b_name and frappe.db.exists("DocType", "Broker"):
+        b_name = frappe.db.get_value("Broker", doc.broker, "broker_name")
+    doc.broker_name = b_name or doc.broker
     doc.item = payload.get("item")
     doc.stock_group = payload.get("stock_group") or (frappe.db.get_value("Item", doc.item, "stock_group") if doc.item else "Sugar")
     doc.quantity = flt(payload.get("quantity"))
@@ -956,9 +963,16 @@ def save_sales_entry(data=None):
 
     doc = frappe.new_doc("Broker Sales Entry")
     doc.posting_date = payload.get("posting_date") or nowdate()
-    doc.company = payload.get("company") or frappe.defaults.get_user_default("company") or frappe.get_all("Company", pluck="name")[0]
+    comp = payload.get("company") or frappe.defaults.get_user_default("company")
+    if not comp and frappe.db.exists("DocType", "Company"):
+        comps = frappe.get_all("Company", pluck="name")
+        comp = comps[0] if comps else None
+    doc.company = comp or "Default Company"
     doc.broker = payload.get("broker")
-    doc.broker_name = payload.get("broker_name") or frappe.db.get_value("Brokers", doc.broker, "broker_name") or frappe.db.get_value("Broker", doc.broker, "broker_name")
+    b_name = payload.get("broker_name") or frappe.db.get_value("Brokers", doc.broker, "broker_name")
+    if not b_name and frappe.db.exists("DocType", "Broker"):
+        b_name = frappe.db.get_value("Broker", doc.broker, "broker_name")
+    doc.broker_name = b_name or doc.broker
     doc.item = payload.get("item")
     doc.stock_group = payload.get("stock_group") or (frappe.db.get_value("Item", doc.item, "stock_group") if doc.item else "Sugar")
     doc.quantity = flt(payload.get("quantity"))
@@ -1044,7 +1058,7 @@ def get_dashboard_summary():
     """
     Returns summary statistics for the Brokerage Desk.
     """
-    broker_dt = "Brokers" if frappe.db.count("Brokers") > 0 else "Broker"
+    broker_dt = "Brokers" if frappe.db.exists("DocType", "Brokers") else "Broker"
     total_brokers = frappe.db.count(broker_dt, {"status": "Active"})
     purchase_brokers = frappe.db.count(broker_dt, {"status": "Active", "applicable_for_purchase": 1})
     sales_brokers = frappe.db.count(broker_dt, {"status": "Active", "applicable_for_sales": 1})

@@ -20,8 +20,9 @@ def ensure_test_prerequisites():
         dt.name = "Company"
         dt.module = "Brokerage Module"
         dt.custom = 1
+        dt.autoname = "field:company_name"
         dt.fields = [
-            {"fieldname": "company_name", "fieldtype": "Data", "label": "Company Name", "reqd": 1},
+            {"fieldname": "company_name", "fieldtype": "Data", "label": "Company Name", "reqd": 1, "unique": 1},
             {"fieldname": "default_currency", "fieldtype": "Data", "label": "Default Currency"}
         ]
         dt.insert(ignore_permissions=True)
@@ -43,8 +44,9 @@ def ensure_test_prerequisites():
         item_dt.name = "Item"
         item_dt.module = "Brokerage Module"
         item_dt.custom = 1
+        item_dt.autoname = "field:item_code"
         item_dt.fields = [
-            {"fieldname": "item_code", "fieldtype": "Data", "label": "Item Code", "reqd": 1},
+            {"fieldname": "item_code", "fieldtype": "Data", "label": "Item Code", "reqd": 1, "unique": 1},
             {"fieldname": "item_name", "fieldtype": "Data", "label": "Item Name"},
             {"fieldname": "item_group", "fieldtype": "Data", "label": "Item Group"},
             {"fieldname": "stock_group", "fieldtype": "Link", "options": "Stock Group", "label": "Stock Group"},
