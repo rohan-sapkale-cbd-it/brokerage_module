@@ -23,7 +23,7 @@ concurrency:
 jobs:
   frontend:
     name: Frontend Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
@@ -46,7 +46,7 @@ jobs:
 
   backend:
     name: Backend Server Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: frontend
     strategy:
       fail-fast: false

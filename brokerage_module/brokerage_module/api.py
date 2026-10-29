@@ -36,7 +36,8 @@ def ensure_stock_group_setup():
             },
         ]
     }
-    create_custom_fields(custom_fields, update=True)
+    if frappe.db.exists("DocType", "Item"):
+        create_custom_fields(custom_fields, update=True)
 
     # Ensure default Stock Group 'Sugar' exists
     if not frappe.db.exists("Stock Group", "Sugar"):
@@ -71,16 +72,17 @@ def ensure_stock_group_setup():
 
     # Backfill items where stock_group is NULL or empty
     items_updated = 0
-    items = frappe.get_all("Item", fields=["name", "stock_group", "gst_rate"])
-    for it in items:
-        to_update = {}
-        if not it.get("stock_group"):
-            to_update["stock_group"] = "Sugar"
-        if it.get("gst_rate") is None or flt(it.get("gst_rate")) == 0:
-            to_update["gst_rate"] = 5.0
-        if to_update:
-            frappe.db.set_value("Item", it["name"], to_update, update_modified=False)
-            items_updated += 1
+    if frappe.db.exists("DocType", "Item"):
+        items = frappe.get_all("Item", fields=["name", "stock_group", "gst_rate"])
+        for it in items:
+            to_update = {}
+            if not it.get("stock_group"):
+                to_update["stock_group"] = "Sugar"
+            if it.get("gst_rate") is None or flt(it.get("gst_rate")) == 0:
+                to_update["gst_rate"] = 5.0
+            if to_update:
+                frappe.db.set_value("Item", it["name"], to_update, update_modified=False)
+                items_updated += 1
 
     frappe.db.commit()
     return {"status": "success", "items_updated": items_updated}
@@ -260,7 +262,7 @@ def get_boot():
     roles = frappe.get_roles(user)
     companies = frappe.get_all(
         "Company", fields=["name", "company_name", "default_currency"], ignore_permissions=True
-    )
+    ) if frappe.db.exists("DocType", "Company") else []
     default_company = frappe.defaults.get_user_default("company") or (companies[0].name if companies else "")
 
     try:

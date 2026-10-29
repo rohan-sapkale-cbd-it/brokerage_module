@@ -12,44 +12,88 @@ from brokerage_module.brokerage_module.api import (
 )
 
 
-def run_tests():
-    print("==================================================")
-    print("STARTING BROKERAGE MODULE INTEGRATION TESTS")
-    print("==================================================")
+def ensure_test_prerequisites():
+    """Ensure Company, Item, and Stock Group DocTypes and records exist so tests can run self-contained."""
+    # 1. Ensure Company DocType and record exist
+    if not frappe.db.exists("DocType", "Company"):
+        dt = frappe.new_doc("DocType")
+        dt.name = "Company"
+        dt.module = "Brokerage Module"
+        dt.custom = 1
+        dt.fields = [
+            {"fieldname": "company_name", "fieldtype": "Data", "label": "Company Name", "reqd": 1},
+            {"fieldname": "default_currency", "fieldtype": "Data", "label": "Default Currency"}
+        ]
+        dt.insert(ignore_permissions=True)
 
-    # 1. Get or create test items
+    companies = frappe.get_all("Company", limit=1, pluck="name")
+    if not companies:
+        c = frappe.new_doc("Company")
+        c.company_name = "Test Brokerage Trading Co"
+        if hasattr(c, "default_currency"):
+            c.default_currency = "INR"
+        c.insert(ignore_permissions=True)
+        company_name = c.name
+    else:
+        company_name = companies[0]
+
+    # 2. Ensure Item DocType exists
+    if not frappe.db.exists("DocType", "Item"):
+        item_dt = frappe.new_doc("DocType")
+        item_dt.name = "Item"
+        item_dt.module = "Brokerage Module"
+        item_dt.custom = 1
+        item_dt.fields = [
+            {"fieldname": "item_code", "fieldtype": "Data", "label": "Item Code", "reqd": 1},
+            {"fieldname": "item_name", "fieldtype": "Data", "label": "Item Name"},
+            {"fieldname": "item_group", "fieldtype": "Data", "label": "Item Group"},
+            {"fieldname": "stock_group", "fieldtype": "Link", "options": "Stock Group", "label": "Stock Group"},
+            {"fieldname": "gst_rate", "fieldtype": "Percent", "label": "GST Rate"},
+            {"fieldname": "stock_uom", "fieldtype": "Data", "label": "Stock UOM"},
+            {"fieldname": "standard_rate", "fieldtype": "Currency", "label": "Standard Rate"},
+            {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"}
+        ]
+        item_dt.insert(ignore_permissions=True)
+
+    # 3. Ensure Stock Group setup
+    from brokerage_module.brokerage_module.api import ensure_stock_group_setup
+    ensure_stock_group_setup()
+
+    # 4. Get or create test items
     items = frappe.get_all("Item", limit=2, pluck="name")
     if not items:
         item_doc = frappe.new_doc("Item")
         item_doc.item_code = "TEST-COMMODITY-A"
         item_doc.item_name = "Test Sugar Commodity A"
-        item_doc.item_group = "All Item Groups"
         item_doc.stock_uom = "Quintal"
-        item_doc.insert()
-        items = [item_doc.name]
+        item_doc.stock_group = "Sugar"
+        item_doc.gst_rate = 5.0
+        item_doc.insert(ignore_permissions=True)
+
+        item_doc_b = frappe.new_doc("Item")
+        item_doc_b.item_code = "TEST-COMMODITY-B"
+        item_doc_b.item_name = "Test Sugar Commodity B"
+        item_doc_b.stock_uom = "Quintal"
+        item_doc_b.stock_group = "Sugar"
+        item_doc_b.gst_rate = 5.0
+        item_doc_b.insert(ignore_permissions=True)
+
+        items = [item_doc.name, item_doc_b.name]
 
     item_a = items[0]
     item_b = items[1] if len(items) > 1 else items[0]
+
+    return company_name, item_a, item_b
+
+
+def run_tests():
+    print("==================================================")
+    print("STARTING BROKERAGE MODULE INTEGRATION TESTS")
+    print("==================================================")
+
+    company, item_a, item_b = ensure_test_prerequisites()
+    print(f"[OK] Using Company: {company}")
     print(f"[OK] Using Items: {item_a}, {item_b}")
-
-    # 2. Get or create test supplier and customer
-    supplier = frappe.get_all("Supplier", limit=1, pluck="name")
-    if not supplier:
-        sup_doc = frappe.new_doc("Supplier")
-        sup_doc.supplier_name = "Test Agro Supplier"
-        sup_doc.insert()
-        supplier = [sup_doc.name]
-    supplier_name = supplier[0]
-
-    customer = frappe.get_all("Customer", limit=1, pluck="name")
-    if not customer:
-        cust_doc = frappe.new_doc("Customer")
-        cust_doc.customer_name = "Test Retail Customer"
-        cust_doc.insert()
-        customer = [cust_doc.name]
-    customer_name = customer[0]
-
-    company = frappe.get_all("Company", limit=1, pluck="name")[0]
 
     # 3. Test Broker Creation with Checkpoints & Tables
     print("\n--- Test 1: Create Broker with Checkpoints & 3-Method Table ---")
