@@ -21,11 +21,10 @@ def ensure_test_prerequisites():
         dt.module = "Brokerage Module"
         dt.custom = 1
         dt.autoname = "field:company_name"
-        dt.fields = [
-            {"fieldname": "company_name", "fieldtype": "Data", "label": "Company Name", "reqd": 1, "unique": 1},
-            {"fieldname": "default_currency", "fieldtype": "Data", "label": "Default Currency"}
-        ]
+        dt.append("fields", {"fieldname": "company_name", "fieldtype": "Data", "label": "Company Name", "reqd": 1, "unique": 1})
+        dt.append("fields", {"fieldname": "default_currency", "fieldtype": "Data", "label": "Default Currency"})
         dt.insert(ignore_permissions=True)
+        frappe.db.commit()
 
     companies = frappe.get_all("Company", limit=1, pluck="name")
     if not companies:
@@ -34,18 +33,23 @@ def ensure_test_prerequisites():
         if hasattr(c, "default_currency"):
             c.default_currency = "INR"
         c.insert(ignore_permissions=True)
+        frappe.db.commit()
         company_name = c.name
     else:
         company_name = companies[0]
 
-    # 2. Ensure Item DocType exists
+    # 2. Ensure Stock Group setup
+    from brokerage_module.brokerage_module.api import ensure_stock_group_setup
+    ensure_stock_group_setup()
+
+    # 3. Ensure Item DocType exists
     if not frappe.db.exists("DocType", "Item"):
         item_dt = frappe.new_doc("DocType")
         item_dt.name = "Item"
         item_dt.module = "Brokerage Module"
         item_dt.custom = 1
         item_dt.autoname = "field:item_code"
-        item_dt.fields = [
+        for f in [
             {"fieldname": "item_code", "fieldtype": "Data", "label": "Item Code", "reqd": 1, "unique": 1},
             {"fieldname": "item_name", "fieldtype": "Data", "label": "Item Name"},
             {"fieldname": "item_group", "fieldtype": "Data", "label": "Item Group"},
@@ -54,12 +58,10 @@ def ensure_test_prerequisites():
             {"fieldname": "stock_uom", "fieldtype": "Data", "label": "Stock UOM"},
             {"fieldname": "standard_rate", "fieldtype": "Currency", "label": "Standard Rate"},
             {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"}
-        ]
+        ]:
+            item_dt.append("fields", f)
         item_dt.insert(ignore_permissions=True)
-
-    # 3. Ensure Stock Group setup
-    from brokerage_module.brokerage_module.api import ensure_stock_group_setup
-    ensure_stock_group_setup()
+        frappe.db.commit()
 
     # 4. Get or create test items
     items = frappe.get_all("Item", limit=2, pluck="name")
@@ -79,6 +81,7 @@ def ensure_test_prerequisites():
         item_doc_b.stock_group = "Sugar"
         item_doc_b.gst_rate = 5.0
         item_doc_b.insert(ignore_permissions=True)
+        frappe.db.commit()
 
         items = [item_doc.name, item_doc_b.name]
 
@@ -89,6 +92,15 @@ def ensure_test_prerequisites():
 
 
 def run_tests():
+    try:
+        _run_tests_internal()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise e
+
+
+def _run_tests_internal():
     print("==================================================")
     print("STARTING BROKERAGE MODULE INTEGRATION TESTS")
     print("==================================================")

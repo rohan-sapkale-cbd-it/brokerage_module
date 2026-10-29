@@ -37,7 +37,13 @@ def ensure_stock_group_setup():
         ]
     }
     if frappe.db.exists("DocType", "Item"):
-        create_custom_fields(custom_fields, update=True)
+        meta = frappe.get_meta("Item")
+        cfields = []
+        for cf in custom_fields.get("Item", []):
+            if not meta.has_field(cf["fieldname"]):
+                cfields.append(cf)
+        if cfields:
+            create_custom_fields({"Item": cfields}, update=True)
 
     # Ensure default Stock Group 'Sugar' exists
     if not frappe.db.exists("Stock Group", "Sugar"):
@@ -231,7 +237,7 @@ def save_item(data=None):
         doc.description = payload.get("description")
 
     # Item group fallback for ERPNext Item validation
-    if not doc.item_group:
+    if not doc.item_group and frappe.db.exists("DocType", "Item Group"):
         default_ig = frappe.db.get_value("Item Group", "Products", "name") or frappe.db.get_value("Item Group", "All Item Groups", "name")
         if not default_ig:
             default_ig = frappe.get_all("Item Group", pluck="name", limit=1)
@@ -303,6 +309,9 @@ def search_entities(doctype=None, query=None, limit=30, for_purchase=None, for_s
         for_sales = kwargs.get("for_sales")
 
     if not doctype:
+        return []
+
+    if doctype not in ("Broker", "Brokers") and not frappe.db.exists("DocType", doctype):
         return []
 
     filters = {}
@@ -944,6 +953,7 @@ def save_purchase_entry(data=None):
     doc.remarks = payload.get("remarks")
 
     doc.flags.ignore_permissions = True
+    doc.flags.ignore_links = True
     doc.insert()
     if payload.get("submit", True):
         doc.submit()
@@ -997,6 +1007,7 @@ def save_sales_entry(data=None):
     doc.remarks = payload.get("remarks")
 
     doc.flags.ignore_permissions = True
+    doc.flags.ignore_links = True
     doc.insert()
     if payload.get("submit", True):
         doc.submit()
