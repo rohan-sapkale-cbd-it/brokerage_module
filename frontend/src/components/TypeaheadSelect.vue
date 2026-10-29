@@ -80,7 +80,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update:modelValue', 'update:label', 'change'])
+const emit = defineEmits(['update:modelValue', 'update:label', 'change', 'enter'])
 
 const wrapRef = ref(null)
 const inputRef = ref(null)
@@ -162,6 +162,7 @@ const selectItem = (item) => {
   emit('update:label', lbl)
   emit('change', item)
   closeDropdown()
+  emit('enter')
 }
 
 const clearSelection = () => {
@@ -197,9 +198,15 @@ const onKeyUp = () => {
 const onKeyEnter = () => {
   if (isOpen.value && activeIndex.value >= 0 && items.value[activeIndex.value]) {
     selectItem(items.value[activeIndex.value])
+  } else if (isOpen.value && items.value.length === 1) {
+    selectItem(items.value[0])
   } else if (!isOpen.value) {
-    isOpen.value = true
-    fetchData('')
+    if (props.modelValue) {
+      emit('enter')
+    } else {
+      isOpen.value = true
+      fetchData('')
+    }
   }
 }
 

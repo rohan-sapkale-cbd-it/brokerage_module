@@ -15,10 +15,20 @@
   "section_trade",
   "item",
   "item_name",
+  "stock_group",
   "quantity",
   "bags",
   "rate",
   "trade_amount",
+  "section_gst",
+  "gst_rate",
+  "cgst_rate",
+  "cgst_amount",
+  "column_break_gst",
+  "sgst_rate",
+  "sgst_amount",
+  "total_gst_amount",
+  "grand_total",
   "section_brokerage",
   "brokerage_method",
   "brokerage_rate",
@@ -28,6 +38,13 @@
   "brokerage_amount",
   "rate_source",
   "section_settlement",
+  "settlement_status",
+  "settled_amount",
+  "outstanding_amount",
+  "column_break_settlement",
+  "settled_brokerage",
+  "outstanding_brokerage",
+  "settlement_date",
   "remarks",
   "amended_from"
  ],
@@ -101,6 +118,14 @@
    "read_only": 1
   },
   {
+   "fieldname": "stock_group",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Stock Group",
+   "options": "Stock Group",
+   "read_only": 1
+  },
+  {
    "default": "0",
    "fieldname": "quantity",
    "fieldtype": "Float",
@@ -128,6 +153,72 @@
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Trade Amount (₹)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_gst",
+   "fieldtype": "Section Break",
+   "label": "GST & Taxes"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "5.0",
+   "fieldname": "gst_rate",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "GST Rate (%)"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "2.5",
+   "fieldname": "cgst_rate",
+   "fieldtype": "Percent",
+   "label": "CGST Rate (%)",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "fieldname": "cgst_amount",
+   "fieldtype": "Currency",
+   "label": "CGST Amount (₹)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_gst",
+   "fieldtype": "Column Break"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "2.5",
+   "fieldname": "sgst_rate",
+   "fieldtype": "Percent",
+   "label": "SGST Rate (%)",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "fieldname": "sgst_amount",
+   "fieldtype": "Currency",
+   "label": "SGST Amount (₹)",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "fieldname": "total_gst_amount",
+   "fieldtype": "Currency",
+   "label": "Total GST Amount (₹)",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "fieldname": "grand_total",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Grand Total (Trade + GST) (₹)",
    "read_only": 1
   },
   {
@@ -185,9 +276,60 @@
   {
    "fieldname": "section_settlement",
    "fieldtype": "Section Break",
-   "label": "Notes & Remarks"
+   "label": "Settlement & Outstanding"
   },
   {
+   "allow_on_submit": 1,
+   "default": "Pending",
+   "fieldname": "settlement_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Settlement Status",
+   "options": "Pending\nPartially Settled\nSettled"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "fieldname": "settled_amount",
+   "fieldtype": "Currency",
+   "label": "Settled Amount"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "fieldname": "outstanding_amount",
+   "fieldtype": "Currency",
+   "label": "Outstanding Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_settlement",
+   "fieldtype": "Column Break"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "fieldname": "settled_brokerage",
+   "fieldtype": "Currency",
+   "label": "Settled Brokerage"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "0",
+   "fieldname": "outstanding_brokerage",
+   "fieldtype": "Currency",
+   "label": "Outstanding Brokerage",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "settlement_date",
+   "fieldtype": "Date",
+   "label": "Settlement Date"
+  },
+  {
+   "allow_on_submit": 1,
    "fieldname": "remarks",
    "fieldtype": "Small Text",
    "label": "Remarks"
@@ -206,7 +348,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-10-28 10:00:00.000000",
+ "modified": "2026-10-29 06:00:00.000000",
  "modified_by": "Administrator",
  "module": "Brokerage Module",
  "name": "Broker Sales Entry",

@@ -1,129 +1,145 @@
 <template>
-  <div class="content-card">
-    <div class="page-header">
-      <div>
-        <div class="page-title">
-          <span>👥 Brokers Directory &amp; Master Setup</span>
+  <div id="main-layout">
+    <div id="content-area">
+      <div class="content-card">
+        <div class="page-header">
+          <div>
+            <div class="page-title">
+              <span>👥 Brokers Directory &amp; Master Setup</span>
+            </div>
+            <div class="page-subtitle">
+              Configure broker checkpoints (Purchase / Sell) and item-wise brokerage rules (Per Bag, Per Quintal, or Percentage).
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px;">
+            <button type="button" class="btn btn-primary" @click="openCreateModal">
+              ➕ New Broker Master (Full Screen)
+            </button>
+          </div>
         </div>
-        <div class="page-subtitle">
-          Configure broker checkpoints (Purchase / Sell) and item-wise brokerage rules (Per Bag, Per Quintal, or Percentage).
+
+        <!-- Filter chips -->
+        <div style="display: flex; gap: 8px; margin-bottom: 16px; align-items: center; flex-wrap: wrap;">
+          <span style="font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase;">Role Filter:</span>
+          <button
+            type="button"
+            class="btn btn-sm"
+            :class="filterRole === 'All' ? 'btn-primary' : 'btn-secondary'"
+            @click="filterRole = 'All'"
+          >
+            All Brokers ({{ brokers.length }})
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm"
+            :class="filterRole === 'Purchase' ? 'btn-primary' : 'btn-secondary'"
+            @click="filterRole = 'Purchase'"
+          >
+            🛒 Purchase Brokers ({{ countPurchase }})
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm"
+            :class="filterRole === 'Sell' ? 'btn-primary' : 'btn-secondary'"
+            @click="filterRole = 'Sell'"
+          >
+            🏷️ Sell Brokers ({{ countSales }})
+          </button>
         </div>
+
+        <!-- Table of Brokers -->
+        <div style="border: 1px solid var(--line); border-radius: 6px; overflow-x: auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Broker Name</th>
+                <th>Mobile</th>
+                <th>City</th>
+                <th>Checkpoints / Roles</th>
+                <th>Purchase Rules</th>
+                <th>Sell Rules</th>
+                <th>Status</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="filteredBrokers.length === 0">
+                <td colspan="9" style="text-align: center; padding: 30px; color: var(--muted);">
+                  {{ isLoading ? 'Loading brokers...' : 'No brokers found matching current filter.' }}
+                </td>
+              </tr>
+              <tr v-for="b in filteredBrokers" :key="b.name">
+                <td style="font-family: var(--font-mono); font-weight: 600; font-size: 12px; color: var(--blue);">
+                  {{ b.name }}
+                </td>
+                <td style="font-weight: 700; color: var(--navy);">
+                  {{ b.broker_name }}
+                </td>
+                <td>{{ b.mobile_no || '—' }}</td>
+                <td>{{ b.city || '—' }}</td>
+                <td>
+                  <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <span v-if="b.applicable_for_purchase" class="badge badge-blue">🛒 Purchase</span>
+                    <span v-if="b.applicable_for_sales" class="badge badge-green">🏷️ Sell</span>
+                    <span v-if="!b.applicable_for_purchase && !b.applicable_for_sales" class="badge badge-amber">None</span>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge badge-blue">{{ b.purchase_rules_count || 0 }} items</span>
+                </td>
+                <td>
+                  <span class="badge badge-green">{{ b.sales_rules_count || 0 }} items</span>
+                </td>
+                <td>
+                  <span :class="b.status === 'Active' ? 'badge badge-green' : 'badge badge-amber'">
+                    {{ b.status }}
+                  </span>
+                </td>
+                <td style="text-align: right;">
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm"
+                    @click="editBroker(b)"
+                  >
+                    ✏️ Edit Rates
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Broker Create / Edit Modal -->
+        <BrokerModal
+          :show="showModal"
+          :broker-data="activeBrokerData"
+          @close="showModal = false"
+          @saved="onBrokerSaved"
+        />
       </div>
-
-      <div style="display: flex; gap: 10px;">
-        <button type="button" class="btn btn-primary" @click="openCreateModal">
-          ➕ New Broker Master
-        </button>
-      </div>
     </div>
 
-    <!-- Filter chips -->
-    <div style="display: flex; gap: 10px; margin-bottom: 18px; align-items: center; flex-wrap: wrap;">
-      <span style="font-size: 13px; font-weight: 600; color: #475569;">Filter:</span>
-      <button
-        type="button"
-        class="btn btn-sm"
-        :class="filterRole === 'All' ? 'btn-primary' : 'btn-secondary'"
-        @click="filterRole = 'All'"
-      >
-        All Brokers ({{ brokers.length }})
-      </button>
-      <button
-        type="button"
-        class="btn btn-sm"
-        :class="filterRole === 'Purchase' ? 'btn-primary' : 'btn-secondary'"
-        @click="filterRole = 'Purchase'"
-      >
-        🛒 Purchase Brokers ({{ countPurchase }})
-      </button>
-      <button
-        type="button"
-        class="btn btn-sm"
-        :class="filterRole === 'Sell' ? 'btn-primary' : 'btn-secondary'"
-        @click="filterRole = 'Sell'"
-      >
-        🏷️ Sell Brokers ({{ countSales }})
-      </button>
-    </div>
-
-    <!-- Table of Brokers -->
-    <div class="data-table-wrap">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Broker Name</th>
-            <th>Mobile</th>
-            <th>City</th>
-            <th>Checkpoints / Roles</th>
-            <th>Purchase Rules</th>
-            <th>Sell Rules</th>
-            <th>Status</th>
-            <th style="text-align: right;">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="filteredBrokers.length === 0">
-            <td colspan="9" style="text-align: center; padding: 30px; color: #64748b;">
-              No brokers found matching current filter. Click "➕ New Broker Master" to create one.
-            </td>
-          </tr>
-          <tr v-for="b in filteredBrokers" :key="b.name">
-            <td style="font-family: var(--font-mono); font-weight: 600; font-size: 12px; color: #2563eb;">
-              {{ b.name }}
-            </td>
-            <td style="font-weight: 700; color: #0f172a;">
-              {{ b.broker_name }}
-            </td>
-            <td>{{ b.mobile_no || '—' }}</td>
-            <td>{{ b.city || '—' }}</td>
-            <td>
-              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                <span v-if="b.applicable_for_purchase" class="badge badge-blue">🛒 Purchase</span>
-                <span v-if="b.applicable_for_sales" class="badge badge-green">🏷️ Sell</span>
-                <span v-if="!b.applicable_for_purchase && !b.applicable_for_sales" class="badge badge-gray">None</span>
-              </div>
-            </td>
-            <td>
-              <span class="badge badge-gray">{{ b.purchase_rules_count || 0 }} items</span>
-            </td>
-            <td>
-              <span class="badge badge-gray">{{ b.sales_rules_count || 0 }} items</span>
-            </td>
-            <td>
-              <span :class="b.status === 'Active' ? 'badge badge-green' : 'badge badge-gray'">
-                {{ b.status }}
-              </span>
-            </td>
-            <td style="text-align: right;">
-              <button
-                type="button"
-                class="btn btn-secondary btn-sm"
-                @click="editBroker(b)"
-              >
-                ✏️ Edit &amp; Rates
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Broker Create / Edit Modal -->
-    <BrokerModal
-      :show="showModal"
-      :broker-data="activeBrokerData"
-      @close="showModal = false"
-      @saved="onBrokerSaved"
+    <!-- Right-side Gateway MenuPanel -->
+    <MenuPanel
+      section-title="Brokers Master"
+      :items="menuItems"
+      :active-index="0"
+      @select="handleSelect"
     />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useFrappeApi } from '../composables/useFrappeApi'
+import { showToast } from '../composables/useKeyboardEngine'
 import BrokerModal from '../components/BrokerModal.vue'
+import MenuPanel from '../components/common/MenuPanel.vue'
 
+const router = useRouter()
 const { searchEntities, getBrokerDetails } = useFrappeApi()
 
 const brokers = ref([])
@@ -136,7 +152,6 @@ const loadBrokers = async () => {
   isLoading.value = true
   try {
     const list = await searchEntities('Brokers', '', { limit: 100 })
-    // Fetch counts and full details
     const fullList = []
     for (const b of list) {
       try {
@@ -184,16 +199,37 @@ const editBroker = async (b) => {
     activeBrokerData.value = details
     showModal.value = true
   } catch (e) {
-    alert('Failed to load broker: ' + e.message)
+    showToast('Failed to load broker: ' + e.message)
   }
 }
 
 const onBrokerSaved = () => {
+  showModal.value = false
   loadBrokers()
+  showToast('Broker master updated')
+}
+
+// Right-side Menu Items
+const menuItems = [
+  { isHeader: true, label: '🏢 BROKER MASTERS' },
+  { key: 'N', label: '+ New Broker (Full Screen)', action: () => openCreateModal() },
+  { key: 'R', label: 'Date-Wise Rate Cards', action: () => router.push('/rate-configs') },
+
+  { isHeader: true, label: '⚡ VOUCHERS' },
+  { key: 'F9', label: 'Purchase Entry', action: () => router.push('/purchase') },
+  { key: 'F8', label: 'Sales Entry', action: () => router.push('/sell') },
+
+  { isHeader: true, label: '📋 REGISTERS' },
+  { key: 'L', label: 'All Registers', action: () => router.push('/registers') },
+  { key: 'Esc', label: 'Gateway of Brokerage', action: () => router.push('/') },
+]
+
+const handleSelect = (idx) => {
+  if (menuItems[idx].isHeader) return
+  menuItems[idx].action()
 }
 
 onMounted(() => {
   loadBrokers()
 })
 </script>
-

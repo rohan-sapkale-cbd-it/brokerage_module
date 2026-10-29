@@ -193,8 +193,186 @@ def run_tests():
     assert stats["sales"]["count"] >= 1
     print(f"  [PASS] Dashboard: {stats['brokers']['total']} brokers, Purchase: ₹{stats['purchase']['total_trade']} (Brk: ₹{stats['purchase']['total_brokerage']}), Sales: ₹{stats['sales']['total_trade']} (Brk: ₹{stats['sales']['total_brokerage']})")
 
+    # 11. Test Sales Outstandings Register & Settlement
+    print("\n--- Test 9: Sales Outstanding Register & Settlement ---")
+    from brokerage_module.brokerage_module.api import get_sales_outstanding_register, settle_sales_entry
+    out_reg = get_sales_outstanding_register(broker=broker_id)
+    assert out_reg["summary"]["total_vouchers"] >= 1, "Should have sales vouchers"
+    assert out_reg["summary"]["total_brokerage_outstanding"] >= 1250.0, "Should have pending brokerage due"
+    print(f"  [PASS] Sales Outstanding Register: {out_reg['summary']['pending_vouchers']} pending vouchers, ₹{out_reg['summary']['total_brokerage_outstanding']} brokerage due across {out_reg['summary']['total_brokers']} brokers")
+
+    # Settle the sales entry
+    settle_res = settle_sales_entry(voucher_id=s_entry["name"], mark_full=1, remarks="Test Full Settlement")
+    assert settle_res["settlement_status"] == "Settled"
+    assert settle_res["outstanding_brokerage"] == 0.0
+    print(f"  [PASS] Successfully settled {s_entry['name']}: Status = {settle_res['settlement_status']}, Outstandings = ₹{settle_res['outstanding_brokerage']}")
+
+    # 12. Test Stock Group & Item Master with GST
+    print("\n--- Test 10: Stock Group DocType & Item Master with GST ---")
+    from brokerage_module.brokerage_module.api import (
+        save_stock_group,
+        get_stock_groups,
+        save_item,
+        get_items
+    )
+
+    sg_res = save_stock_group({
+        "stock_group_name": "Jaggery & Sweeteners",
+        "default_gst_rate": 5.0,
+        "is_active": 1,
+        "description": "Natural jaggery, jaggery powder, and related organic sweeteners"
+    })
+    sg_name = sg_res["name"]
+    assert sg_res["default_gst_rate"] == 5.0, "Expected default GST 5.0%"
+    print(f"  [PASS] Stock Group created: {sg_name} with 5% default GST")
+
+    # Create Item assigned to this Stock Group
+    item_payload = {
+        "item_code": "JAGGERY-ORGANIC-50KG",
+        "item_name": "Organic Kolhapur Jaggery 50KG",
+        "stock_group": sg_name,
+        "stock_uom": "Bag",
+        "gst_rate": 5.0,
+        "standard_rate": 4200.0,
+        "description": "Kolhapur premium organic jaggery blocks"
+    }
+    item_res = save_item(item_payload)
+    test_item_code = item_res["item_code"]
+    assert item_res["stock_group"] == sg_name, f"Expected {sg_name}, got {item_res['stock_group']}"
+    assert item_res["gst_rate"] == 5.0, f"Expected GST 5.0, got {item_res['gst_rate']}"
+    print(f"  [PASS] Item created: {test_item_code} mapped to Stock Group '{sg_name}' with 5.0% GST")
+
+    # 13. Test Broker Rate Configuration by Stock Group & GST calculations in Voucher Entries
+    print("\n--- Test 11: Stock Group Brokerage Inheritance & Intra-state GST (CGST/SGST) ---")
+    # Create a broker whose brokerage rules are defined by Stock Group
+    sg_broker_payload = {
+        "broker_name": "Kolhapur Jaggery Commission Agent",
+        "mobile_no": "9988776655",
+        "city": "Kolhapur",
+        "state": "Maharashtra",
+        "status": "Active",
+        "applicable_for_purchase": 1,
+        "applicable_for_sales": 1,
+        "purchase_brokerage_rules": [
+            {
+                "stock_group": sg_name,
+                "brokerage_method": "Per Bag",
+                "percentage": 0,
+                "per_bag": 18.0,
+                "per_quintal": 0,
+                "remarks": "₹18/bag for Jaggery & Sweeteners purchase"
+            }
+        ],
+        "sales_brokerage_rules": [
+            {
+                "stock_group": sg_name,
+                "brokerage_method": "Per Quintal",
+                "percentage": 0,
+                "per_bag": 0,
+                "per_quintal": 30.0,
+                "remarks": "₹30/qtl for Jaggery & Sweeteners sale"
+            }
+        ]
+    }
+    sg_broker = save_broker(sg_broker_payload)
+    sg_broker_id = sg_broker["name"]
+    print(f"  [PASS] Broker created: {sg_broker_id} with rates configured on Stock Group '{sg_name}'")
+
+    # Test automatic inheritance in Purchase by selecting item (without manually selecting stock group)
+    sg_lookup_p = get_broker_item_rate(broker=sg_broker_id, item=test_item_code, entry_type="Purchase")
+    assert sg_lookup_p["found"] is True, "Must find brokerage rate via item's stock group"
+    assert sg_lookup_p["stock_group"] == sg_name, f"Expected {sg_name}, got {sg_lookup_p['stock_group']}"
+    assert sg_lookup_p["brokerage_method"] == "Per Bag", f"Expected Per Bag, got {sg_lookup_p['brokerage_method']}"
+    assert sg_lookup_p["rate"] == 18.0, f"Expected 18.0/bag, got {sg_lookup_p['rate']}"
+    assert sg_lookup_p["gst_rate"] == 5.0, f"Expected 5.0% GST, got {sg_lookup_p['gst_rate']}"
+    assert sg_lookup_p["cgst_rate"] == 2.5, f"Expected 2.5% CGST, got {sg_lookup_p['cgst_rate']}"
+    assert sg_lookup_p["sgst_rate"] == 2.5, f"Expected 2.5% SGST, got {sg_lookup_p['sgst_rate']}"
+    print(f"  [PASS] Purchase rate auto-inherited by Item Stock Group: {sg_lookup_p['brokerage_method']} @ ₹{sg_lookup_p['rate']}/bag | GST: {sg_lookup_p['gst_rate']}% (CGST {sg_lookup_p['cgst_rate']}% + SGST {sg_lookup_p['sgst_rate']}%)")
+
+    # Submit Purchase Entry with GST
+    # 50 bags @ ₹4200 = ₹2,10,000 Trade. GST 5% = ₹10,500 (CGST ₹5,250 + SGST ₹5,250). Grand Total = ₹2,20,500. Brokerage = 50 * 18 = ₹900.
+    trade_amt_p = 50 * 4200.0
+    gst_amt_p = trade_amt_p * 0.05
+    cgst_amt_p = gst_amt_p / 2.0
+    sgst_amt_p = gst_amt_p / 2.0
+    grand_tot_p = trade_amt_p + gst_amt_p
+
+    sg_p_entry = save_purchase_entry({
+        "posting_date": nowdate(),
+        "company": company,
+        "broker": sg_broker_id,
+        "item": test_item_code,
+        "stock_group": sg_name,
+        "quantity": 50,
+        "bags": 50,
+        "rate": 4200.0,
+        "brokerage_method": sg_lookup_p["brokerage_method"],
+        "brokerage_rate": sg_lookup_p["rate"],
+        "per_bag": sg_lookup_p["per_bag"],
+        "rate_source": sg_lookup_p["source"],
+        "gst_rate": 5.0,
+        "cgst_rate": 2.5,
+        "cgst_amount": cgst_amt_p,
+        "sgst_rate": 2.5,
+        "sgst_amount": sgst_amt_p,
+        "total_gst_amount": gst_amt_p,
+        "grand_total": grand_tot_p,
+        "submit": True
+    })
+    assert sg_p_entry["trade_amount"] == 210000.0, f"Expected 210000, got {sg_p_entry['trade_amount']}"
+    assert sg_p_entry["total_gst_amount"] == 10500.0, f"Expected 10500 GST, got {sg_p_entry['total_gst_amount']}"
+    assert sg_p_entry["cgst_amount"] == 5250.0, f"Expected 5250 CGST, got {sg_p_entry['cgst_amount']}"
+    assert sg_p_entry["sgst_amount"] == 5250.0, f"Expected 5250 SGST, got {sg_p_entry['sgst_amount']}"
+    assert sg_p_entry["grand_total"] == 220500.0, f"Expected 220500 Grand Total, got {sg_p_entry['grand_total']}"
+    assert sg_p_entry["brokerage_amount"] == 900.0, f"Expected 900 Brokerage, got {sg_p_entry['brokerage_amount']}"
+    print(f"  [PASS] Purchase Entry {sg_p_entry['name']}: Trade ₹{sg_p_entry['trade_amount']} + CGST ₹{sg_p_entry['cgst_amount']} + SGST ₹{sg_p_entry['sgst_amount']} = Grand Total ₹{sg_p_entry['grand_total']} | Brokerage ₹{sg_p_entry['brokerage_amount']}")
+
+    # Test automatic inheritance in Sales by selecting item
+    sg_lookup_s = get_broker_item_rate(broker=sg_broker_id, item=test_item_code, entry_type="Sell")
+    assert sg_lookup_s["found"] is True, "Must find brokerage rate via item's stock group"
+    assert sg_lookup_s["brokerage_method"] == "Per Quintal", f"Expected Per Quintal, got {sg_lookup_s['brokerage_method']}"
+    assert sg_lookup_s["rate"] == 30.0, f"Expected 30.0/qtl, got {sg_lookup_s['rate']}"
+
+    # Submit Sales Entry with GST
+    # 40 Qtl @ ₹4500 = ₹1,80,000 Trade. GST 5% = ₹9,000 (CGST ₹4,500 + SGST ₹4,500). Grand Total = ₹1,89,000. Brokerage = 40 * 30 = ₹1,200.
+    trade_amt_s = 40 * 4500.0
+    gst_amt_s = trade_amt_s * 0.05
+    cgst_amt_s = gst_amt_s / 2.0
+    sgst_amt_s = gst_amt_s / 2.0
+    grand_tot_s = trade_amt_s + gst_amt_s
+
+    sg_s_entry = save_sales_entry({
+        "posting_date": nowdate(),
+        "company": company,
+        "broker": sg_broker_id,
+        "item": test_item_code,
+        "stock_group": sg_name,
+        "quantity": 40,
+        "bags": 80,
+        "rate": 4500.0,
+        "brokerage_method": sg_lookup_s["brokerage_method"],
+        "brokerage_rate": sg_lookup_s["rate"],
+        "per_quintal": sg_lookup_s["per_quintal"],
+        "rate_source": sg_lookup_s["source"],
+        "gst_rate": 5.0,
+        "cgst_rate": 2.5,
+        "cgst_amount": cgst_amt_s,
+        "sgst_rate": 2.5,
+        "sgst_amount": sgst_amt_s,
+        "total_gst_amount": gst_amt_s,
+        "grand_total": grand_tot_s,
+        "submit": True
+    })
+    assert sg_s_entry["trade_amount"] == 180000.0, f"Expected 180000, got {sg_s_entry['trade_amount']}"
+    assert sg_s_entry["total_gst_amount"] == 9000.0, f"Expected 9000 GST, got {sg_s_entry['total_gst_amount']}"
+    assert sg_s_entry["cgst_amount"] == 4500.0, f"Expected 4500 CGST, got {sg_s_entry['cgst_amount']}"
+    assert sg_s_entry["sgst_amount"] == 4500.0, f"Expected 4500 SGST, got {sg_s_entry['sgst_amount']}"
+    assert sg_s_entry["grand_total"] == 189000.0, f"Expected 189000 Grand Total, got {sg_s_entry['grand_total']}"
+    assert sg_s_entry["brokerage_amount"] == 1200.0, f"Expected 1200 Brokerage, got {sg_s_entry['brokerage_amount']}"
+    print(f"  [PASS] Sales Entry {sg_s_entry['name']}: Trade ₹{sg_s_entry['trade_amount']} + CGST ₹{sg_s_entry['cgst_amount']} + SGST ₹{sg_s_entry['sgst_amount']} = Grand Total ₹{sg_s_entry['grand_total']} | Brokerage ₹{sg_s_entry['brokerage_amount']}")
+
     print("\n==================================================")
-    print("ALL 8 BROKERAGE MODULE BACKEND TESTS PASSED (100%)")
+    print("ALL 11 BROKERAGE MODULE BACKEND TESTS PASSED (100%)")
     print("==================================================")
 
 

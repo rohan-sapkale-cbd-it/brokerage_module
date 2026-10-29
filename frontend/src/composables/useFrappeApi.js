@@ -108,13 +108,33 @@ export function useFrappeApi() {
     return await call('brokerage_module.brokerage_module.api.save_broker', { data }, 'POST')
   }
 
-  const getBrokerItemRate = async (broker, item, entryType = 'Purchase', postingDate = null) => {
+  const getBrokerItemRate = async (broker, item, stockGroup = null, entryType = 'Purchase', postingDate = null) => {
     return await call('brokerage_module.brokerage_module.api.get_broker_item_rate', {
       broker,
       item,
+      stock_group: stockGroup,
       entry_type: entryType,
       posting_date: postingDate || bootState.today,
     }, 'GET')
+  }
+
+  const getStockGroups = async (query = '') => {
+    return await call('brokerage_module.brokerage_module.api.get_stock_groups', { query }, 'GET')
+  }
+
+  const saveStockGroup = async (data) => {
+    return await call('brokerage_module.brokerage_module.api.save_stock_group', { data }, 'POST')
+  }
+
+  const getItems = async (query = '', stockGroup = null) => {
+    return await call('brokerage_module.brokerage_module.api.get_items', {
+      query,
+      stock_group: stockGroup,
+    }, 'GET')
+  }
+
+  const saveItem = async (data) => {
+    return await call('brokerage_module.brokerage_module.api.save_item', { data }, 'POST')
   }
 
   const saveRateConfiguration = async (data) => {
@@ -144,6 +164,14 @@ export function useFrappeApi() {
     return await call('brokerage_module.brokerage_module.api.get_dashboard_summary', {}, 'GET')
   }
 
+  const getSalesOutstandingRegister = async (filters = {}) => {
+    return await call('brokerage_module.brokerage_module.api.get_sales_outstanding_register', filters, 'GET')
+  }
+
+  const settleSalesEntry = async (payload = {}) => {
+    return await call('brokerage_module.brokerage_module.api.settle_sales_entry', payload, 'POST')
+  }
+
   return {
     bootState,
     boot,
@@ -158,6 +186,12 @@ export function useFrappeApi() {
     saveSalesEntry,
     getEntries,
     getDashboardSummary,
+    getSalesOutstandingRegister,
+    settleSalesEntry,
+    getStockGroups,
+    saveStockGroup,
+    getItems,
+    saveItem,
   }
 }
 

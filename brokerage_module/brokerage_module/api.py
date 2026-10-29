@@ -6,10 +6,252 @@ from frappe.utils import flt, nowdate, getdate, now, cstr
 
 
 @frappe.whitelist(methods=["GET", "POST"], allow_guest=True)
+def ensure_stock_group_setup():
+    """
+    Ensures:
+    1. Custom fields 'stock_group' and 'gst_rate' exist on 'Item' doctype.
+    2. Default Stock Group 'Sugar' exists.
+    3. Existing items are backfilled with default Stock Group ('Sugar') and GST rate (5.0%).
+    """
+    from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
+
+    custom_fields = {
+        "Item": [
+            {
+                "fieldname": "stock_group",
+                "label": "Stock Group",
+                "fieldtype": "Link",
+                "options": "Stock Group",
+                "insert_after": "item_group",
+                "in_list_view": 1,
+                "in_standard_filter": 1,
+            },
+            {
+                "fieldname": "gst_rate",
+                "label": "GST Rate (%)",
+                "fieldtype": "Percent",
+                "default": "5.0",
+                "insert_after": "stock_group",
+                "in_list_view": 1,
+            },
+        ]
+    }
+    create_custom_fields(custom_fields, update=True)
+
+    # Ensure default Stock Group 'Sugar' exists
+    if not frappe.db.exists("Stock Group", "Sugar"):
+        sg = frappe.get_doc({
+            "doctype": "Stock Group",
+            "stock_group_name": "Sugar",
+            "default_gst_rate": 5.0,
+            "is_active": 1,
+            "description": "Standard Sugar Commodity Stock Group",
+        })
+        sg.insert(ignore_permissions=True)
+
+    if not frappe.db.exists("Stock Group", "Edible Oil"):
+        sg2 = frappe.get_doc({
+            "doctype": "Stock Group",
+            "stock_group_name": "Edible Oil",
+            "default_gst_rate": 5.0,
+            "is_active": 1,
+            "description": "Edible Oil and Fats Stock Group",
+        })
+        sg2.insert(ignore_permissions=True)
+
+    if not frappe.db.exists("Stock Group", "Grains"):
+        sg3 = frappe.get_doc({
+            "doctype": "Stock Group",
+            "stock_group_name": "Grains",
+            "default_gst_rate": 5.0,
+            "is_active": 1,
+            "description": "Grains and Pulses Stock Group",
+        })
+        sg3.insert(ignore_permissions=True)
+
+    # Backfill items where stock_group is NULL or empty
+    items_updated = 0
+    items = frappe.get_all("Item", fields=["name", "stock_group", "gst_rate"])
+    for it in items:
+        to_update = {}
+        if not it.get("stock_group"):
+            to_update["stock_group"] = "Sugar"
+        if it.get("gst_rate") is None or flt(it.get("gst_rate")) == 0:
+            to_update["gst_rate"] = 5.0
+        if to_update:
+            frappe.db.set_value("Item", it["name"], to_update, update_modified=False)
+            items_updated += 1
+
+    frappe.db.commit()
+    return {"status": "success", "items_updated": items_updated}
+
+
+@frappe.whitelist(methods=["GET", "POST"], allow_guest=True)
+def get_stock_groups(query=None, limit=100):
+    """
+    Returns active Stock Groups with their default GST rate and item counts.
+    """
+    query = (query if query is not None else (frappe.form_dict.get("query") or "")).strip()
+    limit = int(limit or frappe.form_dict.get("limit") or 100)
+    filters = {"is_active": 1}
+    or_filters = []
+    if query:
+        or_filters = [
+            ["stock_group_name", "like", f"%{query}%"],
+            ["name", "like", f"%{query}%"],
+        ]
+    records = frappe.get_all(
+        "Stock Group",
+        filters=filters,
+        or_filters=or_filters if query else None,
+        fields=["name", "stock_group_name", "default_gst_rate", "is_active", "description"],
+        order_by="stock_group_name asc",
+        limit=limit,
+    )
+    for r in records:
+        r["item_count"] = frappe.db.count("Item", {"stock_group": r.name})
+    return records
+
+
+@frappe.whitelist(methods=["POST"], allow_guest=True)
+def save_stock_group(data=None):
+    """
+    Creates or updates a Stock Group master.
+    """
+    if isinstance(data, str):
+        payload = json.loads(data)
+    else:
+        payload = data or frappe.form_dict
+
+    name = payload.get("name") or payload.get("stock_group_name")
+    if not name:
+        frappe.throw(_("Stock Group Name is required."))
+
+    if frappe.db.exists("Stock Group", name):
+        doc = frappe.get_doc("Stock Group", name)
+    else:
+        doc = frappe.new_doc("Stock Group")
+        doc.stock_group_name = payload.get("stock_group_name") or name
+
+    doc.default_gst_rate = flt(payload.get("default_gst_rate") or 5.0)
+    doc.is_active = 1 if payload.get("is_active") in (1, "1", True, None) else 0
+    doc.description = payload.get("description") or ""
+
+    doc.save(ignore_permissions=True)
+    frappe.db.commit()
+    return doc.as_dict()
+
+
+@frappe.whitelist(methods=["GET", "POST"], allow_guest=True)
+def get_items(query=None, stock_group=None, limit=100):
+    """
+    Returns items with stock_group, gst_rate, and stock_uom.
+    """
+    query = (query if query is not None else (frappe.form_dict.get("query") or "")).strip()
+    stock_group = stock_group or frappe.form_dict.get("stock_group")
+    limit = int(limit or frappe.form_dict.get("limit") or 100)
+
+    filters = {"disabled": 0}
+    if stock_group:
+        filters["stock_group"] = stock_group
+
+    or_filters = []
+    if query:
+        or_filters = [
+            ["item_name", "like", f"%{query}%"],
+            ["item_code", "like", f"%{query}%"],
+            ["name", "like", f"%{query}%"],
+        ]
+
+    fields = ["name", "item_code", "item_name", "item_group", "stock_uom", "stock_group", "gst_rate", "standard_rate", "description"]
+    records = frappe.get_all(
+        "Item",
+        filters=filters,
+        or_filters=or_filters if query else None,
+        fields=fields,
+        order_by="item_name asc",
+        limit=limit,
+    )
+    for r in records:
+        if not r.get("stock_group"):
+            r["stock_group"] = "Sugar"
+        if r.get("gst_rate") is None:
+            r["gst_rate"] = 5.0
+    return records
+
+
+@frappe.whitelist(methods=["POST"], allow_guest=True)
+def save_item(data=None):
+    """
+    Creates or updates an Item master with stock_group, gst_rate, stock_uom, and standard_rate.
+    """
+    if isinstance(data, str):
+        payload = json.loads(data)
+    else:
+        payload = data or frappe.form_dict
+
+    item_code = payload.get("item_code") or payload.get("name") or payload.get("item_name")
+    if not item_code:
+        frappe.throw(_("Item Name / Code is required."))
+
+    if frappe.db.exists("Item", item_code):
+        doc = frappe.get_doc("Item", item_code)
+    else:
+        doc = frappe.new_doc("Item")
+        doc.item_code = item_code
+
+    doc.item_name = payload.get("item_name") or item_code
+    doc.stock_uom = payload.get("stock_uom") or "Quintal"
+
+    # Stock Group Assignment
+    stock_group = payload.get("stock_group") or "Sugar"
+    if not frappe.db.exists("Stock Group", stock_group):
+        sg = frappe.get_doc({
+            "doctype": "Stock Group",
+            "stock_group_name": stock_group,
+            "default_gst_rate": flt(payload.get("gst_rate") or 5.0),
+            "is_active": 1,
+        })
+        sg.insert(ignore_permissions=True)
+    doc.stock_group = stock_group
+
+    # GST Rate
+    if payload.get("gst_rate") is not None and str(payload.get("gst_rate")).strip() != "":
+        doc.gst_rate = flt(payload.get("gst_rate"))
+    else:
+        default_gst = frappe.db.get_value("Stock Group", stock_group, "default_gst_rate")
+        doc.gst_rate = flt(default_gst) if default_gst is not None else 5.0
+
+    if payload.get("standard_rate"):
+        doc.standard_rate = flt(payload.get("standard_rate"))
+
+    if payload.get("description"):
+        doc.description = payload.get("description")
+
+    # Item group fallback for ERPNext Item validation
+    if not doc.item_group:
+        default_ig = frappe.db.get_value("Item Group", "Products", "name") or frappe.db.get_value("Item Group", "All Item Groups", "name")
+        if not default_ig:
+            default_ig = frappe.get_all("Item Group", pluck="name", limit=1)
+            default_ig = default_ig[0] if default_ig else "All Item Groups"
+        doc.item_group = default_ig
+
+    doc.flags.ignore_permissions = True
+    doc.save()
+    frappe.db.commit()
+    return doc.as_dict()
+
+
+@frappe.whitelist(methods=["GET", "POST"], allow_guest=True)
 def get_boot():
     """
     Returns initial boot information for the Brokerage Desk Vue app.
     """
+    try:
+        ensure_stock_group_setup()
+    except Exception as e:
+        frappe.log_error(f"ensure_stock_group_setup error: {e}", "Brokerage Module Setup")
+
     user = frappe.session.user
     user_info = frappe.db.get_value(
         "User", user, ["full_name", "user_image", "email"], as_dict=True
@@ -155,8 +397,35 @@ def search_entities(doctype=None, query=None, limit=30, for_purchase=None, for_s
             for r in records
         ]
 
+    elif doctype in ("Stock Group", "stock_group"):
+        fields = ["name", "stock_group_name", "default_gst_rate", "description"]
+        or_filters = []
+        if query:
+            or_filters = [
+                ["stock_group_name", "like", f"%{query}%"],
+                ["name", "like", f"%{query}%"],
+            ]
+        records = frappe.get_all(
+            "Stock Group",
+            filters={"is_active": 1},
+            or_filters=or_filters if query else None,
+            fields=fields,
+            limit=limit,
+            order_by="stock_group_name asc",
+        )
+        return [
+            {
+                "id": r.name,
+                "name": r.name,
+                "label": r.stock_group_name or r.name,
+                "sub": f"Default GST: {flt(r.default_gst_rate or 5.0)}%",
+                "default_gst_rate": flt(r.default_gst_rate or 5.0),
+            }
+            for r in records
+        ]
+
     elif doctype == "Item":
-        fields = ["name", "item_name", "item_group", "stock_uom"]
+        fields = ["name", "item_name", "item_group", "stock_uom", "stock_group", "gst_rate"]
         or_filters = []
         if query:
             or_filters = [
@@ -176,8 +445,10 @@ def search_entities(doctype=None, query=None, limit=30, for_purchase=None, for_s
                 "id": r.name,
                 "name": r.name,
                 "label": r.item_name or r.name,
-                "sub": f"{r.item_group or ''} ({r.stock_uom or 'Qtl'})".strip(),
+                "sub": f"Group: {r.stock_group or 'Sugar'} | {r.stock_uom or 'Qtl'} | GST: {flt(r.gst_rate if r.gst_rate is not None else 5.0)}%",
                 "uom": r.stock_uom or "Quintal",
+                "stock_group": r.stock_group or "Sugar",
+                "gst_rate": flt(r.gst_rate if r.gst_rate is not None else 5.0),
             }
             for r in records
         ]
@@ -207,6 +478,8 @@ def get_broker_details(broker=None):
         "applicable_for_sales": getattr(doc, "applicable_for_sales", 1),
         "purchase_brokerage_rules": [
             {
+                "stock_group": r.stock_group,
+                "stock_group_name": r.stock_group_name or (frappe.db.get_value("Stock Group", r.stock_group, "stock_group_name") if r.stock_group else "") or r.stock_group,
                 "item": r.item,
                 "item_name": r.item_name,
                 "brokerage_method": r.brokerage_method,
@@ -219,6 +492,8 @@ def get_broker_details(broker=None):
         ],
         "sales_brokerage_rules": [
             {
+                "stock_group": r.stock_group,
+                "stock_group_name": r.stock_group_name or (frappe.db.get_value("Stock Group", r.stock_group, "stock_group_name") if r.stock_group else "") or r.stock_group,
                 "item": r.item,
                 "item_name": r.item_name,
                 "brokerage_method": r.brokerage_method,
@@ -262,8 +537,17 @@ def save_broker(data=None):
     doc.set("purchase_brokerage_rules", [])
     if doc.applicable_for_purchase:
         for r in payload.get("purchase_brokerage_rules", []):
-            if not r.get("item"):
+            stk_grp = r.get("stock_group")
+            itm = r.get("item")
+            if not stk_grp and not itm:
                 continue
+            if not stk_grp and itm:
+                stk_grp = frappe.db.get_value("Item", itm, "stock_group") or "Sugar"
+
+            stk_grp_name = r.get("stock_group_name")
+            if stk_grp and not stk_grp_name:
+                stk_grp_name = frappe.db.get_value("Stock Group", stk_grp, "stock_group_name") or stk_grp
+
             method = r.get("brokerage_method") or "Percentage"
             pct = flt(r.get("percentage") or 0)
             bag = flt(r.get("per_bag") or 0)
@@ -277,8 +561,10 @@ def save_broker(data=None):
                 pct, bag = 0, 0
 
             doc.append("purchase_brokerage_rules", {
-                "item": r.get("item"),
-                "item_name": r.get("item_name") or frappe.db.get_value("Item", r.get("item"), "item_name"),
+                "stock_group": stk_grp,
+                "stock_group_name": stk_grp_name,
+                "item": itm,
+                "item_name": r.get("item_name") or (frappe.db.get_value("Item", itm, "item_name") if itm else ""),
                 "brokerage_method": method,
                 "percentage": pct,
                 "per_bag": bag,
@@ -289,8 +575,17 @@ def save_broker(data=None):
     doc.set("sales_brokerage_rules", [])
     if doc.applicable_for_sales:
         for r in payload.get("sales_brokerage_rules", []):
-            if not r.get("item"):
+            stk_grp = r.get("stock_group")
+            itm = r.get("item")
+            if not stk_grp and not itm:
                 continue
+            if not stk_grp and itm:
+                stk_grp = frappe.db.get_value("Item", itm, "stock_group") or "Sugar"
+
+            stk_grp_name = r.get("stock_group_name")
+            if stk_grp and not stk_grp_name:
+                stk_grp_name = frappe.db.get_value("Stock Group", stk_grp, "stock_group_name") or stk_grp
+
             method = r.get("brokerage_method") or "Percentage"
             pct = flt(r.get("percentage") or 0)
             bag = flt(r.get("per_bag") or 0)
@@ -304,8 +599,10 @@ def save_broker(data=None):
                 pct, bag = 0, 0
 
             doc.append("sales_brokerage_rules", {
-                "item": r.get("item"),
-                "item_name": r.get("item_name") or frappe.db.get_value("Item", r.get("item"), "item_name"),
+                "stock_group": stk_grp,
+                "stock_group_name": stk_grp_name,
+                "item": itm,
+                "item_name": r.get("item_name") or (frappe.db.get_value("Item", itm, "item_name") if itm else ""),
                 "brokerage_method": method,
                 "percentage": pct,
                 "per_bag": bag,
@@ -319,21 +616,45 @@ def save_broker(data=None):
 
 
 @frappe.whitelist(methods=["GET", "POST"], allow_guest=True)
-def get_broker_item_rate(broker=None, item=None, entry_type="Purchase", posting_date=None):
+def get_broker_item_rate(broker=None, item=None, stock_group=None, entry_type="Purchase", posting_date=None):
     """
     Core business rule lookup:
-    When broker and item are chosen, automatically find the configured rate and method.
+    When broker and item (or stock group) are chosen, automatically find the configured rate and method.
     Search order:
-    1. Active date-wise Broker Rate Configuration (<= posting_date, sorted DESC)
-    2. Broker master table (purchase_brokerage_rules or sales_brokerage_rules)
+    1. Active date-wise Broker Rate Configuration (<= posting_date, sorted DESC) by Stock Group (or item)
+    2. Broker master table (purchase_brokerage_rules or sales_brokerage_rules) by Stock Group (or item)
+    Also returns resolved GST rate and CGST/SGST breakdown.
     """
     broker = broker or frappe.form_dict.get("broker")
     item = item or frappe.form_dict.get("item")
+    stock_group = stock_group or frappe.form_dict.get("stock_group")
     entry_type = (entry_type or frappe.form_dict.get("entry_type") or "Purchase").strip().capitalize()
     posting_date = posting_date or frappe.form_dict.get("posting_date") or nowdate()
 
-    if not broker or not item:
+    if not broker:
         return {"found": False}
+
+    gst_rate = 5.0
+    # Resolve Stock Group and GST from Item if item is supplied
+    if item and frappe.db.exists("Item", item):
+        it_data = frappe.db.get_value("Item", item, ["stock_group", "gst_rate"], as_dict=True) or {}
+        if not stock_group and it_data.get("stock_group"):
+            stock_group = it_data.get("stock_group")
+        if it_data.get("gst_rate") is not None and flt(it_data.get("gst_rate")) > 0:
+            gst_rate = flt(it_data.get("gst_rate"))
+
+    if not stock_group:
+        stock_group = "Sugar"
+
+    # If gst_rate is still default 5.0, check stock_group default_gst_rate
+    if frappe.db.exists("Stock Group", stock_group):
+        sg_gst = frappe.db.get_value("Stock Group", stock_group, "default_gst_rate")
+        if sg_gst is not None and (gst_rate == 5.0 or gst_rate == 0):
+            gst_rate = flt(sg_gst)
+
+    cgst_rate = round(gst_rate / 2.0, 4)
+    sgst_rate = round(gst_rate / 2.0, 4)
+    stock_group_name = frappe.db.get_value("Stock Group", stock_group, "stock_group_name") or stock_group
 
     table_field = "purchase_brokerage_rules" if entry_type == "Purchase" else "sales_brokerage_rules"
 
@@ -352,16 +673,30 @@ def get_broker_item_rate(broker=None, item=None, entry_type="Purchase", posting_
 
     if config_records:
         cfg_name = config_records[0].name
+        # Match by stock_group first
         child_rows = frappe.get_all(
             "Broker Rate Item",
             filters={
                 "parent": cfg_name,
                 "parentfield": table_field,
-                "item": item,
+                "stock_group": stock_group,
             },
-            fields=["item", "item_name", "brokerage_method", "percentage", "per_bag", "per_quintal"],
+            fields=["stock_group", "stock_group_name", "item", "item_name", "brokerage_method", "percentage", "per_bag", "per_quintal"],
             limit=1,
         )
+        # Fallback match by item
+        if not child_rows and item:
+            child_rows = frappe.get_all(
+                "Broker Rate Item",
+                filters={
+                    "parent": cfg_name,
+                    "parentfield": table_field,
+                    "item": item,
+                },
+                fields=["stock_group", "stock_group_name", "item", "item_name", "brokerage_method", "percentage", "per_bag", "per_quintal"],
+                limit=1,
+            )
+
         if child_rows:
             r = child_rows[0]
             method = r.brokerage_method or "Percentage"
@@ -370,25 +705,44 @@ def get_broker_item_rate(broker=None, item=None, entry_type="Purchase", posting_
                 "found": True,
                 "broker": broker,
                 "item": item,
+                "stock_group": stock_group,
+                "stock_group_name": r.stock_group_name or stock_group_name,
                 "brokerage_method": method,
                 "rate": rate_val,
                 "percentage": flt(r.percentage),
                 "per_bag": flt(r.per_bag),
                 "per_quintal": flt(r.per_quintal),
+                "gst_rate": gst_rate,
+                "cgst_rate": cgst_rate,
+                "sgst_rate": sgst_rate,
                 "source": f"Rate Card ({cfg_name})",
             }
 
     # 2. Search in Broker Master direct child tables
+    # Match by stock_group first
     child_rows = frappe.get_all(
         "Broker Rate Item",
         filters={
             "parent": broker,
             "parentfield": table_field,
-            "item": item,
+            "stock_group": stock_group,
         },
-        fields=["item", "item_name", "brokerage_method", "percentage", "per_bag", "per_quintal"],
+        fields=["stock_group", "stock_group_name", "item", "item_name", "brokerage_method", "percentage", "per_bag", "per_quintal"],
         limit=1,
     )
+    # Fallback match by item
+    if not child_rows and item:
+        child_rows = frappe.get_all(
+            "Broker Rate Item",
+            filters={
+                "parent": broker,
+                "parentfield": table_field,
+                "item": item,
+            },
+            fields=["stock_group", "stock_group_name", "item", "item_name", "brokerage_method", "percentage", "per_bag", "per_quintal"],
+            limit=1,
+        )
+
     if child_rows:
         r = child_rows[0]
         method = r.brokerage_method or "Percentage"
@@ -397,21 +751,36 @@ def get_broker_item_rate(broker=None, item=None, entry_type="Purchase", posting_
             "found": True,
             "broker": broker,
             "item": item,
+            "stock_group": stock_group,
+            "stock_group_name": r.stock_group_name or stock_group_name,
             "brokerage_method": method,
             "rate": rate_val,
             "percentage": flt(r.percentage),
             "per_bag": flt(r.per_bag),
             "per_quintal": flt(r.per_quintal),
+            "gst_rate": gst_rate,
+            "cgst_rate": cgst_rate,
+            "sgst_rate": sgst_rate,
             "source": f"Broker Master ({broker})",
         }
 
-    return {"found": False, "broker": broker, "item": item}
+    return {
+        "found": False,
+        "broker": broker,
+        "item": item,
+        "stock_group": stock_group,
+        "stock_group_name": stock_group_name,
+        "gst_rate": gst_rate,
+        "cgst_rate": cgst_rate,
+        "sgst_rate": sgst_rate,
+    }
 
 
 @frappe.whitelist(methods=["POST"], allow_guest=True)
 def save_rate_configuration(data=None):
     """
     Creates or updates a date-wise Broker Rate Configuration.
+    Supports stock_group rules as well as item rules.
     """
     if isinstance(data, str):
         payload = json.loads(data)
@@ -433,8 +802,17 @@ def save_rate_configuration(data=None):
     doc.set("purchase_brokerage_rules", [])
     if doc.applicable_for_purchase:
         for r in payload.get("purchase_brokerage_rules", []):
-            if not r.get("item"):
+            stk_grp = r.get("stock_group")
+            itm = r.get("item")
+            if not stk_grp and not itm:
                 continue
+            if not stk_grp and itm:
+                stk_grp = frappe.db.get_value("Item", itm, "stock_group") or "Sugar"
+
+            stk_grp_name = r.get("stock_group_name")
+            if stk_grp and not stk_grp_name:
+                stk_grp_name = frappe.db.get_value("Stock Group", stk_grp, "stock_group_name") or stk_grp
+
             method = r.get("brokerage_method") or "Percentage"
             pct = flt(r.get("percentage") or 0)
             bag = flt(r.get("per_bag") or 0)
@@ -447,8 +825,10 @@ def save_rate_configuration(data=None):
                 pct, bag = 0, 0
 
             doc.append("purchase_brokerage_rules", {
-                "item": r.get("item"),
-                "item_name": r.get("item_name") or frappe.db.get_value("Item", r.get("item"), "item_name"),
+                "stock_group": stk_grp,
+                "stock_group_name": stk_grp_name,
+                "item": itm,
+                "item_name": r.get("item_name") or (frappe.db.get_value("Item", itm, "item_name") if itm else ""),
                 "brokerage_method": method,
                 "percentage": pct,
                 "per_bag": bag,
@@ -459,8 +839,17 @@ def save_rate_configuration(data=None):
     doc.set("sales_brokerage_rules", [])
     if doc.applicable_for_sales:
         for r in payload.get("sales_brokerage_rules", []):
-            if not r.get("item"):
+            stk_grp = r.get("stock_group")
+            itm = r.get("item")
+            if not stk_grp and not itm:
                 continue
+            if not stk_grp and itm:
+                stk_grp = frappe.db.get_value("Item", itm, "stock_group") or "Sugar"
+
+            stk_grp_name = r.get("stock_group_name")
+            if stk_grp and not stk_grp_name:
+                stk_grp_name = frappe.db.get_value("Stock Group", stk_grp, "stock_group_name") or stk_grp
+
             method = r.get("brokerage_method") or "Percentage"
             pct = flt(r.get("percentage") or 0)
             bag = flt(r.get("per_bag") or 0)
@@ -473,8 +862,10 @@ def save_rate_configuration(data=None):
                 pct, bag = 0, 0
 
             doc.append("sales_brokerage_rules", {
-                "item": r.get("item"),
-                "item_name": r.get("item_name") or frappe.db.get_value("Item", r.get("item"), "item_name"),
+                "stock_group": stk_grp,
+                "stock_group_name": stk_grp_name,
+                "item": itm,
+                "item_name": r.get("item_name") or (frappe.db.get_value("Item", itm, "item_name") if itm else ""),
                 "brokerage_method": method,
                 "percentage": pct,
                 "per_bag": bag,
@@ -508,7 +899,7 @@ def get_rate_configurations(broker=None, limit=50):
 @frappe.whitelist(methods=["POST"], allow_guest=True)
 def save_purchase_entry(data=None):
     """
-    Submits a new Broker Purchase Entry with computed brokerage.
+    Submits a new Broker Purchase Entry with computed brokerage and GST.
     """
     if isinstance(data, str):
         payload = json.loads(data)
@@ -521,9 +912,20 @@ def save_purchase_entry(data=None):
     doc.broker = payload.get("broker")
     doc.broker_name = payload.get("broker_name") or frappe.db.get_value("Brokers", doc.broker, "broker_name") or frappe.db.get_value("Broker", doc.broker, "broker_name")
     doc.item = payload.get("item")
+    doc.stock_group = payload.get("stock_group") or (frappe.db.get_value("Item", doc.item, "stock_group") if doc.item else "Sugar")
     doc.quantity = flt(payload.get("quantity"))
     doc.bags = flt(payload.get("bags") or doc.quantity * 2.0)
     doc.rate = flt(payload.get("rate"))
+
+    # GST rate
+    if payload.get("gst_rate") is not None and str(payload.get("gst_rate")).strip() != "":
+        doc.gst_rate = flt(payload.get("gst_rate"))
+    elif doc.stock_group:
+        sg_gst = frappe.db.get_value("Stock Group", doc.stock_group, "default_gst_rate")
+        doc.gst_rate = flt(sg_gst) if sg_gst is not None else 5.0
+    else:
+        doc.gst_rate = 5.0
+
     doc.brokerage_method = payload.get("brokerage_method") or "Percentage"
     doc.brokerage_rate = flt(payload.get("brokerage_rate"))
     doc.percentage = flt(payload.get("percentage") or (doc.brokerage_rate if doc.brokerage_method == "Percentage" else 0))
@@ -543,7 +945,7 @@ def save_purchase_entry(data=None):
 @frappe.whitelist(methods=["POST"], allow_guest=True)
 def save_sales_entry(data=None):
     """
-    Submits a new Broker Sales Entry with computed brokerage.
+    Submits a new Broker Sales Entry with computed brokerage and GST.
     """
     if isinstance(data, str):
         payload = json.loads(data)
@@ -556,9 +958,20 @@ def save_sales_entry(data=None):
     doc.broker = payload.get("broker")
     doc.broker_name = payload.get("broker_name") or frappe.db.get_value("Brokers", doc.broker, "broker_name") or frappe.db.get_value("Broker", doc.broker, "broker_name")
     doc.item = payload.get("item")
+    doc.stock_group = payload.get("stock_group") or (frappe.db.get_value("Item", doc.item, "stock_group") if doc.item else "Sugar")
     doc.quantity = flt(payload.get("quantity"))
     doc.bags = flt(payload.get("bags") or doc.quantity * 2.0)
     doc.rate = flt(payload.get("rate"))
+
+    # GST rate
+    if payload.get("gst_rate") is not None and str(payload.get("gst_rate")).strip() != "":
+        doc.gst_rate = flt(payload.get("gst_rate"))
+    elif doc.stock_group:
+        sg_gst = frappe.db.get_value("Stock Group", doc.stock_group, "default_gst_rate")
+        doc.gst_rate = flt(sg_gst) if sg_gst is not None else 5.0
+    else:
+        doc.gst_rate = 5.0
+
     doc.brokerage_method = payload.get("brokerage_method") or "Percentage"
     doc.brokerage_rate = flt(payload.get("brokerage_rate"))
     doc.percentage = flt(payload.get("percentage") or (doc.brokerage_rate if doc.brokerage_method == "Percentage" else 0))
@@ -578,7 +991,7 @@ def save_sales_entry(data=None):
 @frappe.whitelist(methods=["GET", "POST"], allow_guest=True)
 def get_entries(entry_type="Purchase", from_date=None, to_date=None, broker=None, limit=100):
     """
-    Returns registered entries with totals.
+    Returns registered entries with totals including GST and Grand Total.
     """
     entry_type = (entry_type or "Purchase").strip().capitalize()
     doctype = "Broker Purchase Entry" if entry_type == "Purchase" else "Broker Sales Entry"
@@ -599,7 +1012,8 @@ def get_entries(entry_type="Purchase", from_date=None, to_date=None, broker=None
         filters=filters,
         fields=[
             "name", "posting_date", "broker", "broker_name",
-            "item", "item_name", "quantity", "bags", "rate", "trade_amount",
+            "item", "item_name", "stock_group", "quantity", "bags", "rate", "trade_amount",
+            "gst_rate", "cgst_rate", "cgst_amount", "sgst_rate", "sgst_amount", "total_gst_amount", "grand_total",
             "brokerage_method", "brokerage_rate", "brokerage_amount", "status", "rate_source"
         ],
         order_by="posting_date desc, creation desc",
@@ -609,6 +1023,8 @@ def get_entries(entry_type="Purchase", from_date=None, to_date=None, broker=None
     total_trade = sum(flt(r.trade_amount) for r in records)
     total_brokerage = sum(flt(r.brokerage_amount) for r in records)
     total_qty = sum(flt(r.quantity) for r in records)
+    total_gst = sum(flt(r.get("total_gst_amount") or 0) for r in records)
+    total_grand = sum(flt(r.get("grand_total") or r.get("trade_amount") or 0) for r in records)
 
     return {
         "records": records,
@@ -616,6 +1032,8 @@ def get_entries(entry_type="Purchase", from_date=None, to_date=None, broker=None
         "total_trade": round(total_trade, 2),
         "total_brokerage": round(total_brokerage, 2),
         "total_qty": round(total_qty, 2),
+        "total_gst": round(total_gst, 2),
+        "total_grand": round(total_grand, 2),
     }
 
 
@@ -726,5 +1144,266 @@ def sync_legacy_brokers():
 
     frappe.db.commit()
     return {"synced": synced, "total_brokers": frappe.db.count("Brokers")}
+
+
+@frappe.whitelist(methods=["GET", "POST"], allow_guest=True)
+def get_sales_outstanding_register(from_date=None, to_date=None, broker=None, settlement_status=None, query=None, limit=200):
+    """
+    Returns Sales Outstandings Register:
+    - Detailed voucher records with trade amount, brokerage, settled amount, outstanding trade, outstanding brokerage, days ageing.
+    - Grouped broker summary with total trade dues and brokerage dues.
+    - Summary KPI statistics and ageing buckets (0-7, 8-15, 16-30, 30+ days).
+    """
+    filters = {"docstatus": 1}
+
+    if from_date and to_date:
+        filters["posting_date"] = ["between", [from_date, to_date]]
+    elif from_date:
+        filters["posting_date"] = [">=", from_date]
+    elif to_date:
+        filters["posting_date"] = ["<=", to_date]
+
+    if broker:
+        filters["broker"] = broker
+
+    if settlement_status and settlement_status != "All":
+        filters["settlement_status"] = settlement_status
+
+    fields = [
+        "name", "posting_date", "broker", "broker_name",
+        "item", "item_name", "stock_group", "quantity", "bags", "rate", "trade_amount",
+        "gst_rate", "cgst_rate", "cgst_amount", "sgst_rate", "sgst_amount", "total_gst_amount", "grand_total",
+        "brokerage_method", "brokerage_rate", "brokerage_amount",
+        "settled_amount", "outstanding_amount", "settled_brokerage", "outstanding_brokerage",
+        "settlement_status", "settlement_date", "status", "rate_source", "remarks"
+    ]
+
+    records = frappe.get_all(
+        "Broker Sales Entry",
+        filters=filters,
+        fields=fields,
+        order_by="posting_date desc, creation desc",
+        limit=int(limit or 200),
+    )
+
+    today = getdate(nowdate())
+    ageing_buckets = {
+        "0-7 Days": {"count": 0, "trade_amount": 0.0, "brokerage": 0.0},
+        "8-15 Days": {"count": 0, "trade_amount": 0.0, "brokerage": 0.0},
+        "16-30 Days": {"count": 0, "trade_amount": 0.0, "brokerage": 0.0},
+        "30+ Days": {"count": 0, "trade_amount": 0.0, "brokerage": 0.0},
+    }
+
+    broker_map = {}
+
+    for r in records:
+        trade_amt = flt(r.trade_amount)
+        brk_amt = flt(r.brokerage_amount)
+        settled_amt = flt(r.settled_amount)
+        settled_brk = flt(r.settled_brokerage)
+
+        out_trade = max(0.0, round(trade_amt - settled_amt, 2))
+        out_brk = max(0.0, round(brk_amt - settled_brk, 2))
+
+        r["trade_amount"] = trade_amt
+        r["brokerage_amount"] = brk_amt
+        r["settled_amount"] = settled_amt
+        r["settled_brokerage"] = settled_brk
+        r["outstanding_amount"] = out_trade
+        r["outstanding_brokerage"] = out_brk
+
+        p_date = getdate(r.posting_date) if r.posting_date else today
+        days = (today - p_date).days
+        r["days_outstanding"] = max(0, days)
+
+        if days <= 7:
+            bucket = "0-7 Days"
+        elif days <= 15:
+            bucket = "8-15 Days"
+        elif days <= 30:
+            bucket = "16-30 Days"
+        else:
+            bucket = "30+ Days"
+
+        r["ageing_bucket"] = bucket
+
+        # Tally ageing bucket
+        ageing_buckets[bucket]["count"] += 1
+        ageing_buckets[bucket]["trade_amount"] += out_trade
+        ageing_buckets[bucket]["brokerage"] += out_brk
+
+        # Group by broker
+        b_key = r.broker or "Unknown"
+        if b_key not in broker_map:
+            broker_info = frappe.db.get_value("Brokers", b_key, ["mobile_no", "city"], as_dict=True) or {}
+            broker_map[b_key] = {
+                "broker": b_key,
+                "broker_name": r.broker_name or b_key,
+                "mobile_no": broker_info.get("mobile_no") or "",
+                "city": broker_info.get("city") or "",
+                "vouchers_count": 0,
+                "pending_vouchers_count": 0,
+                "total_quantity": 0.0,
+                "total_bags": 0.0,
+                "total_trade_amount": 0.0,
+                "total_trade_outstanding": 0.0,
+                "total_brokerage": 0.0,
+                "total_brokerage_outstanding": 0.0,
+                "settled_brokerage": 0.0,
+                "status": "Settled",
+                "vouchers": []
+            }
+
+        bm = broker_map[b_key]
+        bm["vouchers_count"] += 1
+        if r.settlement_status != "Settled":
+            bm["pending_vouchers_count"] += 1
+        bm["total_quantity"] += flt(r.quantity)
+        bm["total_bags"] += flt(r.bags)
+        bm["total_trade_amount"] += trade_amt
+        bm["total_trade_outstanding"] += out_trade
+        bm["total_brokerage"] += brk_amt
+        bm["total_brokerage_outstanding"] += out_brk
+        bm["settled_brokerage"] += settled_brk
+        bm["vouchers"].append(r)
+
+    # Format broker map
+    broker_summary = []
+    for bm in broker_map.values():
+        bm["total_quantity"] = round(bm["total_quantity"], 2)
+        bm["total_bags"] = round(bm["total_bags"], 2)
+        bm["total_trade_amount"] = round(bm["total_trade_amount"], 2)
+        bm["total_trade_outstanding"] = round(bm["total_trade_outstanding"], 2)
+        bm["total_brokerage"] = round(bm["total_brokerage"], 2)
+        bm["total_brokerage_outstanding"] = round(bm["total_brokerage_outstanding"], 2)
+        bm["settled_brokerage"] = round(bm["settled_brokerage"], 2)
+
+        if bm["total_brokerage_outstanding"] <= 0 and bm["total_trade_outstanding"] <= 0:
+            bm["status"] = "Settled"
+        elif bm["total_brokerage_outstanding"] >= 10000 or bm["total_trade_outstanding"] >= 500000:
+            bm["status"] = "High Due"
+        else:
+            bm["status"] = "Due"
+        broker_summary.append(bm)
+
+    broker_summary.sort(key=lambda x: (x["total_brokerage_outstanding"], x["total_trade_outstanding"]), reverse=True)
+
+    # Text Query Filter if provided
+    if query:
+        q = query.lower()
+        records = [
+            r for r in records
+            if q in r["name"].lower()
+            or q in (r.get("broker_name") or "").lower()
+            or q in (r.get("broker") or "").lower()
+            or q in (r.get("item_name") or "").lower()
+        ]
+        broker_summary = [
+            b for b in broker_summary
+            if q in b["broker_name"].lower()
+            or q in b["broker"].lower()
+            or q in b["city"].lower()
+        ]
+
+    total_trade = sum(r["trade_amount"] for r in records)
+    total_trade_out = sum(r["outstanding_amount"] for r in records)
+    total_brk = sum(r["brokerage_amount"] for r in records)
+    total_brk_out = sum(r["outstanding_brokerage"] for r in records)
+    total_brk_settled = sum(r["settled_brokerage"] for r in records)
+    total_qty = sum(flt(r.quantity) for r in records)
+    total_bags = sum(flt(r.bags) for r in records)
+
+    pending_count = sum(1 for r in records if r["settlement_status"] != "Settled")
+    settled_count = sum(1 for r in records if r["settlement_status"] == "Settled")
+    brokers_with_dues = sum(1 for b in broker_summary if b["total_brokerage_outstanding"] > 0 or b["total_trade_outstanding"] > 0)
+
+    for k in ageing_buckets:
+        ageing_buckets[k]["trade_amount"] = round(ageing_buckets[k]["trade_amount"], 2)
+        ageing_buckets[k]["brokerage"] = round(ageing_buckets[k]["brokerage"], 2)
+
+    return {
+        "records": records,
+        "broker_summary": broker_summary,
+        "summary": {
+            "total_vouchers": len(records),
+            "pending_vouchers": pending_count,
+            "settled_vouchers": settled_count,
+            "total_trade_volume": round(total_trade, 2),
+            "total_trade_outstanding": round(total_trade_out, 2),
+            "total_brokerage": round(total_brk, 2),
+            "total_brokerage_outstanding": round(total_brk_out, 2),
+            "total_brokerage_settled": round(total_brk_settled, 2),
+            "total_qty": round(total_qty, 2),
+            "total_bags": round(total_bags, 2),
+            "total_brokers": len(broker_summary),
+            "brokers_with_dues": brokers_with_dues,
+            "ageing_summary": ageing_buckets,
+        }
+    }
+
+
+@frappe.whitelist(methods=["POST"], allow_guest=True)
+def settle_sales_entry(voucher_id=None, settled_trade_amount=None, settled_brokerage=None, remarks=None, mark_full=False, **kwargs):
+    """
+    Records settlement against a Broker Sales Entry voucher.
+    """
+    voucher_id = voucher_id or frappe.form_dict.get("voucher_id") or kwargs.get("voucher_id")
+    if not voucher_id or not frappe.db.exists("Broker Sales Entry", voucher_id):
+        frappe.throw(_("Broker Sales Entry {0} not found.").format(voucher_id))
+
+    doc = frappe.get_doc("Broker Sales Entry", voucher_id)
+    raw_mark_full = mark_full if mark_full is not None else frappe.form_dict.get("mark_full")
+    is_mark_full = raw_mark_full in (1, "1", True, "true")
+
+    if is_mark_full:
+        doc.settled_amount = doc.trade_amount
+        doc.settled_brokerage = doc.brokerage_amount
+        doc.outstanding_amount = 0.0
+        doc.outstanding_brokerage = 0.0
+        doc.settlement_status = "Settled"
+        doc.settlement_date = nowdate()
+    else:
+        if settled_trade_amount is not None:
+            doc.settled_amount = flt(settled_trade_amount)
+        if settled_brokerage is not None:
+            doc.settled_brokerage = flt(settled_brokerage)
+
+        doc.outstanding_amount = max(0.0, round(flt(doc.trade_amount) - flt(doc.settled_amount), 2))
+        doc.outstanding_brokerage = max(0.0, round(flt(doc.brokerage_amount) - flt(doc.settled_brokerage), 2))
+
+        if doc.outstanding_brokerage <= 0 and (doc.settled_brokerage > 0 or doc.settled_amount >= doc.trade_amount):
+            doc.settlement_status = "Settled"
+        elif doc.settled_brokerage > 0 or doc.settled_amount > 0:
+            doc.settlement_status = "Partially Settled"
+        else:
+            doc.settlement_status = "Pending"
+
+        doc.settlement_date = nowdate()
+
+    if remarks:
+        existing = (doc.remarks or "").strip()
+        doc.remarks = f"{existing}\n[Settlement {nowdate()}]: {remarks}".strip()
+
+    doc.db_set({
+        "settled_amount": doc.settled_amount,
+        "settled_brokerage": doc.settled_brokerage,
+        "outstanding_amount": doc.outstanding_amount,
+        "outstanding_brokerage": doc.outstanding_brokerage,
+        "settlement_status": doc.settlement_status,
+        "settlement_date": doc.settlement_date,
+        "remarks": doc.remarks,
+    })
+    frappe.db.commit()
+
+    return {
+        "success": True,
+        "name": doc.name,
+        "settlement_status": doc.settlement_status,
+        "settled_amount": doc.settled_amount,
+        "outstanding_amount": doc.outstanding_amount,
+        "settled_brokerage": doc.settled_brokerage,
+        "outstanding_brokerage": doc.outstanding_brokerage,
+    }
+
 
 

@@ -193,8 +193,22 @@ def run_tests():
     assert stats["sales"]["count"] >= 1
     print(f"  [PASS] Dashboard: {stats['brokers']['total']} brokers, Purchase: ₹{stats['purchase']['total_trade']} (Brk: ₹{stats['purchase']['total_brokerage']}), Sales: ₹{stats['sales']['total_trade']} (Brk: ₹{stats['sales']['total_brokerage']})")
 
+    # 11. Test Sales Outstandings Register & Settlement
+    print("\n--- Test 9: Sales Outstanding Register & Settlement ---")
+    from brokerage_module.brokerage_module.api import get_sales_outstanding_register, settle_sales_entry
+    out_reg = get_sales_outstanding_register(broker=broker_id)
+    assert out_reg["summary"]["total_vouchers"] >= 1, "Should have sales vouchers"
+    assert out_reg["summary"]["total_brokerage_outstanding"] >= 1250.0, "Should have pending brokerage due"
+    print(f"  [PASS] Sales Outstanding Register: {out_reg['summary']['pending_vouchers']} pending vouchers, ₹{out_reg['summary']['total_brokerage_outstanding']} brokerage due across {out_reg['summary']['total_brokers']} brokers")
+
+    # Settle the sales entry
+    settle_res = settle_sales_entry(voucher_id=s_entry["name"], mark_full=1, remarks="Test Full Settlement")
+    assert settle_res["settlement_status"] == "Settled"
+    assert settle_res["outstanding_brokerage"] == 0.0
+    print(f"  [PASS] Successfully settled {s_entry['name']}: Status = {settle_res['settlement_status']}, Outstandings = ₹{settle_res['outstanding_brokerage']}")
+
     print("\n==================================================")
-    print("ALL 8 BROKERAGE MODULE BACKEND TESTS PASSED (100%)")
+    print("ALL 9 BROKERAGE MODULE BACKEND TESTS PASSED (100%)")
     print("==================================================")
 
 

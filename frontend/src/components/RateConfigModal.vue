@@ -90,18 +90,18 @@
               <button
                 type="button"
                 class="btn btn-secondary btn-sm"
-                @click="quickAddAllCommodities('purchase_brokerage_rules')"
+                @click="quickAddAllStockGroups('purchase_brokerage_rules')"
               >
-                ⚡ Add All Commodities
+                ⚡ Add All Stock Groups
               </button>
               <button type="button" class="btn btn-primary btn-sm" @click="addPurchaseRow">
-                + Add Purchase Item Rate
+                + Add Purchase Group Rate
               </button>
             </div>
           </div>
 
           <div v-if="form.purchase_brokerage_rules.length === 0" style="text-align: center; padding: 24px; color: #64748b; font-size: 13px; background: #f8fafc; border-radius: 6px;">
-            No date-wise purchase rates set. Click "+ Add Purchase Item Rate" to configure.
+            No date-wise purchase rates set. Click "+ Add Purchase Group Rate" to configure.
           </div>
 
           <div v-else class="modal-table-wrap">
@@ -109,7 +109,7 @@
               <thead>
                 <tr>
                   <th style="width: 36px; text-align: center;">#</th>
-                  <th style="min-width: 360px;">Commodity / Item *</th>
+                  <th style="min-width: 360px;">Stock Group *</th>
                   <th style="width: 170px;">Active Method</th>
                   <th style="width: 150px;">Per Bag (₹)</th>
                   <th style="width: 150px;">Per Quintal (₹)</th>
@@ -124,21 +124,21 @@
                     <div style="display: flex; gap: 8px; align-items: center;">
                       <div style="flex: 1; min-width: 240px;">
                         <TypeaheadSelect
-                          v-model="row.item"
-                          :label="row.item_name || row.item"
-                          placeholder="Search Item..."
-                          :fetch-fn="searchItems"
-                          @change="(it) => { if(it) row.item_name = it.label || it.name }"
+                          v-model="row.stock_group"
+                          :label="row.stock_group_name || row.stock_group"
+                          placeholder="Search Stock Group..."
+                          :fetch-fn="searchStockGroups"
+                          @change="(g) => { if(g) { row.stock_group_name = g.label || g.name; row.stock_group = g.id || g.name; } }"
                         />
                       </div>
                       <select
-                        v-if="availableItems.length > 0"
-                        style="width: 140px; font-size: 12px; padding: 7px 8px; background: #f1f5f9;"
-                        @change="(e) => onQuickPickItem(row, e)"
+                        v-if="availableStockGroups.length > 0"
+                        style="width: 150px; font-size: 12px; padding: 7px 8px; background: #f1f5f9;"
+                        @change="(e) => onQuickPickStockGroup(row, e)"
                       >
-                        <option value="">▼ Pick Item...</option>
-                        <option v-for="it in availableItems" :key="it.id || it.name" :value="it.id || it.name">
-                          {{ it.label || it.name }}
+                        <option value="">▼ Pick Group...</option>
+                        <option v-for="g in availableStockGroups" :key="g.name" :value="g.name">
+                          {{ g.stock_group_name || g.name }}
                         </option>
                       </select>
                     </div>
@@ -202,18 +202,18 @@
               <button
                 type="button"
                 class="btn btn-secondary btn-sm"
-                @click="quickAddAllCommodities('sales_brokerage_rules')"
+                @click="quickAddAllStockGroups('sales_brokerage_rules')"
               >
-                ⚡ Add All Commodities
+                ⚡ Add All Stock Groups
               </button>
               <button type="button" class="btn btn-success btn-sm" @click="addSalesRow">
-                + Add Sell Item Rate
+                + Add Sell Group Rate
               </button>
             </div>
           </div>
 
           <div v-if="form.sales_brokerage_rules.length === 0" style="text-align: center; padding: 24px; color: #64748b; font-size: 13px; background: #f8fafc; border-radius: 6px;">
-            No date-wise sell rates set. Click "+ Add Sell Item Rate" to configure.
+            No date-wise sell rates set. Click "+ Add Sell Group Rate" to configure.
           </div>
 
           <div v-else class="modal-table-wrap">
@@ -221,7 +221,7 @@
               <thead>
                 <tr>
                   <th style="width: 36px; text-align: center;">#</th>
-                  <th style="min-width: 360px;">Commodity / Item *</th>
+                  <th style="min-width: 360px;">Stock Group *</th>
                   <th style="width: 170px;">Active Method</th>
                   <th style="width: 150px;">Per Bag (₹)</th>
                   <th style="width: 150px;">Per Quintal (₹)</th>
@@ -236,21 +236,21 @@
                     <div style="display: flex; gap: 8px; align-items: center;">
                       <div style="flex: 1; min-width: 240px;">
                         <TypeaheadSelect
-                          v-model="row.item"
-                          :label="row.item_name || row.item"
-                          placeholder="Search Item..."
-                          :fetch-fn="searchItems"
-                          @change="(it) => { if(it) row.item_name = it.label || it.name }"
+                          v-model="row.stock_group"
+                          :label="row.stock_group_name || row.stock_group"
+                          placeholder="Search Stock Group..."
+                          :fetch-fn="searchStockGroups"
+                          @change="(g) => { if(g) { row.stock_group_name = g.label || g.name; row.stock_group = g.id || g.name; } }"
                         />
                       </div>
                       <select
-                        v-if="availableItems.length > 0"
-                        style="width: 140px; font-size: 12px; padding: 7px 8px; background: #f1f5f9;"
-                        @change="(e) => onQuickPickItem(row, e)"
+                        v-if="availableStockGroups.length > 0"
+                        style="width: 150px; font-size: 12px; padding: 7px 8px; background: #f1f5f9;"
+                        @change="(e) => onQuickPickStockGroup(row, e)"
                       >
-                        <option value="">▼ Pick Item...</option>
-                        <option v-for="it in availableItems" :key="it.id || it.name" :value="it.id || it.name">
-                          {{ it.label || it.name }}
+                        <option value="">▼ Pick Group...</option>
+                        <option v-for="g in availableStockGroups" :key="g.name" :value="g.name">
+                          {{ g.stock_group_name || g.name }}
                         </option>
                       </select>
                     </div>
@@ -339,11 +339,11 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'saved'])
 
-const { searchEntities, getBrokerDetails, saveRateConfiguration } = useFrappeApi()
+const { searchEntities, getBrokerDetails, saveRateConfiguration, getStockGroups } = useFrappeApi()
 const isSaving = ref(false)
 const isFullscreen = ref(true)
 const selectedBroker = ref(null)
-const availableItems = ref([])
+const availableStockGroups = ref([])
 
 const form = reactive({
   effective_date: bootState.today || new Date().toISOString().split('T')[0],
@@ -354,12 +354,12 @@ const form = reactive({
   sales_brokerage_rules: [],
 })
 
-const loadAvailableCommodities = async () => {
+const loadAvailableStockGroups = async () => {
   try {
-    const res = await searchEntities('Item', '', { limit: 100 })
-    availableItems.value = res || []
+    const res = await getStockGroups()
+    availableStockGroups.value = res || []
   } catch (err) {
-    console.error('Failed to load items:', err)
+    console.error('Failed to load stock groups:', err)
   }
 }
 
@@ -367,7 +367,7 @@ watch(
   () => props.show,
   (val) => {
     if (val) {
-      loadAvailableCommodities()
+      loadAvailableStockGroups()
     }
   }
 )
@@ -376,39 +376,39 @@ const searchBrokers = async (q) => {
   return await searchEntities('Brokers', q)
 }
 
-const searchItems = async (q) => {
-  return await searchEntities('Item', q)
+const searchStockGroups = async (q) => {
+  return await searchEntities('Stock Group', q)
 }
 
-const onQuickPickItem = (row, e) => {
+const onQuickPickStockGroup = (row, e) => {
   const chosenVal = e.target.value
   if (!chosenVal) return
-  const it = availableItems.value.find((i) => (i.id || i.name) === chosenVal)
-  if (it) {
-    row.item = it.id || it.name
-    row.item_name = it.label || it.name
+  const g = availableStockGroups.value.find((i) => i.name === chosenVal)
+  if (g) {
+    row.stock_group = g.name
+    row.stock_group_name = g.stock_group_name || g.name
   }
   e.target.value = ''
 }
 
-const quickAddAllCommodities = (tableField) => {
-  if (availableItems.value.length === 0) return
+const quickAddAllStockGroups = (tableField) => {
+  if (availableStockGroups.value.length === 0) return
   const currentTable = form[tableField]
-  const existingItems = new Set(currentTable.map((r) => r.item))
+  const existingGroups = new Set(currentTable.map((r) => r.stock_group))
 
-  for (const it of availableItems.value) {
-    const itemCode = it.id || it.name
-    if (!existingItems.has(itemCode)) {
+  for (const g of availableStockGroups.value) {
+    const grpName = g.name
+    if (!existingGroups.has(grpName)) {
       currentTable.push({
-        item: itemCode,
-        item_name: it.label || it.name,
+        stock_group: grpName,
+        stock_group_name: g.stock_group_name || grpName,
         brokerage_method: 'Percentage',
         percentage: 1.0,
         per_bag: 0,
         per_quintal: 0,
         remarks: '',
       })
-      existingItems.add(itemCode)
+      existingGroups.add(grpName)
     }
   }
 }
@@ -429,17 +429,26 @@ const onBrokerSelect = async (item) => {
   try {
     const details = await getBrokerDetails(form.broker)
     selectedBroker.value = details
-    form.purchase_brokerage_rules = (details.purchase_brokerage_rules || []).map((r) => ({ ...r }))
-    form.sales_brokerage_rules = (details.sales_brokerage_rules || []).map((r) => ({ ...r }))
+    form.purchase_brokerage_rules = (details.purchase_brokerage_rules || []).map((r) => ({
+      stock_group: r.stock_group || r.item || 'Sugar',
+      stock_group_name: r.stock_group_name || r.item_name || r.stock_group || 'Sugar',
+      ...r,
+    }))
+    form.sales_brokerage_rules = (details.sales_brokerage_rules || []).map((r) => ({
+      stock_group: r.stock_group || r.item || 'Sugar',
+      stock_group_name: r.stock_group_name || r.item_name || r.stock_group || 'Sugar',
+      ...r,
+    }))
   } catch (e) {
     console.error('Failed to load broker details:', e)
   }
 }
 
 const addPurchaseRow = () => {
+  const defaultGrp = availableStockGroups.value[0]?.name || 'Sugar'
   form.purchase_brokerage_rules.push({
-    item: '',
-    item_name: '',
+    stock_group: defaultGrp,
+    stock_group_name: defaultGrp,
     brokerage_method: 'Percentage',
     percentage: 1.0,
     per_bag: 0,
@@ -453,9 +462,10 @@ const removePurchaseRow = (idx) => {
 }
 
 const addSalesRow = () => {
+  const defaultGrp = availableStockGroups.value[0]?.name || 'Sugar'
   form.sales_brokerage_rules.push({
-    item: '',
-    item_name: '',
+    stock_group: defaultGrp,
+    stock_group_name: defaultGrp,
     brokerage_method: 'Percentage',
     percentage: 1.0,
     per_bag: 0,

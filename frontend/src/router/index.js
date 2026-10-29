@@ -5,6 +5,7 @@ import SalesEntryView from '../views/SalesEntryView.vue'
 import BrokersView from '../views/BrokersView.vue'
 import RateConfigsView from '../views/RateConfigsView.vue'
 import RegistersView from '../views/RegistersView.vue'
+import ItemsView from '../views/ItemsView.vue'
 
 const routes = [
   {
@@ -26,6 +27,12 @@ const routes = [
     meta: { title: 'Sell Entry — Brokerage Desk' },
   },
   {
+    path: '/items',
+    name: 'Items',
+    component: ItemsView,
+    meta: { title: 'Commodity Masters & Stock Groups — Brokerage Desk' },
+  },
+  {
     path: '/brokers',
     name: 'Brokers',
     component: BrokersView,
@@ -42,6 +49,13 @@ const routes = [
     name: 'Registers',
     component: RegistersView,
     meta: { title: 'Registers — Brokerage Desk' },
+  },
+  {
+    path: '/sales-outstanding',
+    name: 'SalesOutstanding',
+    component: RegistersView,
+    props: { type: 'SalesOutstanding' },
+    meta: { title: 'Sales Outstanding Register — Brokerage Desk' },
   },
   {
     path: '/:pathMatch(.*)*',

@@ -28,6 +28,26 @@ class BrokerPurchaseEntry(Document):
         rate = flt(self.rate)
         self.trade_amount = round(qty * rate, 2)
 
+        # Fetch Stock Group if missing
+        if not self.stock_group and self.item:
+            self.stock_group = frappe.db.get_value("Item", self.item, "stock_group")
+
+        # GST Calculations (CGST + SGST)
+        if self.gst_rate is None or str(self.gst_rate).strip() == "":
+            item_gst = frappe.db.get_value("Item", self.item, "gst_rate") if self.item else None
+            self.gst_rate = flt(item_gst) if item_gst is not None else 5.0
+        else:
+            self.gst_rate = flt(self.gst_rate)
+
+        half_pct = round(self.gst_rate / 2.0, 4)
+        self.cgst_rate = half_pct
+        self.sgst_rate = half_pct
+        self.cgst_amount = round(self.trade_amount * (half_pct / 100.0), 2)
+        self.sgst_amount = round(self.trade_amount * (half_pct / 100.0), 2)
+        self.total_gst_amount = round(self.cgst_amount + self.sgst_amount, 2)
+        self.grand_total = round(self.trade_amount + self.total_gst_amount, 2)
+
+        # Brokerage Calculation
         method = self.brokerage_method or "Percentage"
         if method == "Percentage":
             pct = flt(self.percentage if self.percentage is not None and str(self.percentage).strip() != "" else self.brokerage_rate)
@@ -54,4 +74,3 @@ class BrokerPurchaseEntry(Document):
 
     def on_cancel(self):
         self.status = "Cancelled"
-

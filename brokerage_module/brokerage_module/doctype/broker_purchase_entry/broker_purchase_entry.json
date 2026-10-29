@@ -15,10 +15,20 @@
   "section_trade",
   "item",
   "item_name",
+  "stock_group",
   "quantity",
   "bags",
   "rate",
   "trade_amount",
+  "section_gst",
+  "gst_rate",
+  "cgst_rate",
+  "cgst_amount",
+  "column_break_gst",
+  "sgst_rate",
+  "sgst_amount",
+  "total_gst_amount",
+  "grand_total",
   "section_brokerage",
   "brokerage_method",
   "brokerage_rate",
@@ -101,6 +111,14 @@
    "read_only": 1
   },
   {
+   "fieldname": "stock_group",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Stock Group",
+   "options": "Stock Group",
+   "read_only": 1
+  },
+  {
    "default": "0",
    "fieldname": "quantity",
    "fieldtype": "Float",
@@ -128,6 +146,65 @@
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Trade Amount (₹)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_gst",
+   "fieldtype": "Section Break",
+   "label": "GST & Taxes"
+  },
+  {
+   "default": "5.0",
+   "fieldname": "gst_rate",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "GST Rate (%)"
+  },
+  {
+   "default": "2.5",
+   "fieldname": "cgst_rate",
+   "fieldtype": "Percent",
+   "label": "CGST Rate (%)",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "cgst_amount",
+   "fieldtype": "Currency",
+   "label": "CGST Amount (₹)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_gst",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "2.5",
+   "fieldname": "sgst_rate",
+   "fieldtype": "Percent",
+   "label": "SGST Rate (%)",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "sgst_amount",
+   "fieldtype": "Currency",
+   "label": "SGST Amount (₹)",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "total_gst_amount",
+   "fieldtype": "Currency",
+   "label": "Total GST Amount (₹)",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "grand_total",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Grand Total (Trade + GST) (₹)",
    "read_only": 1
   },
   {
@@ -206,7 +283,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-10-28 10:00:00.000000",
+ "modified": "2026-10-29 06:00:00.000000",
  "modified_by": "Administrator",
  "module": "Brokerage Module",
  "name": "Broker Purchase Entry",
