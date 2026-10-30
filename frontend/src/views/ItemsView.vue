@@ -1,21 +1,21 @@
 <template>
-  <div class="page-container page-with-menu">
-    <div class="page-main">
-      <div class="card" style="margin-bottom: 20px;">
+  <div id="main-layout">
+    <div id="content-area">
+      <div class="content-card">
         <!-- Header -->
-        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <div class="page-header items-page-header">
           <div>
-            <div class="card-title" style="display: flex; align-items: center; gap: 10px;">
+            <div class="page-title">
               <span>🌾 Commodity &amp; Stock Group Masters</span>
               <span class="badge badge-blue">{{ items.length }} Items</span>
               <span class="badge badge-purple">{{ stockGroups.length }} Groups</span>
             </div>
-            <div class="card-subtitle">
+            <div class="page-subtitle">
               Every item belongs to a Stock Group (e.g. Sugar). In Broker Master, brokerage terms are assigned per Stock Group and automatically inherited during Purchase &amp; Sell.
             </div>
           </div>
 
-          <div style="display: flex; gap: 10px; align-items: center;">
+          <div class="items-header-actions">
             <button
               type="button"
               class="btn btn-secondary btn-sm"
@@ -35,23 +35,21 @@
         </div>
 
         <!-- Filter & Search Toolbar -->
-        <div style="padding: 14px 20px; background: #f8fafc; border-bottom: 1px solid var(--border); display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
-          <div style="flex: 1; min-width: 220px; position: relative;">
+        <div class="items-filter-bar">
+          <div class="filter-search-box">
             <input
               v-model="searchQuery"
               type="text"
               placeholder="Search by commodity name, code, HSN, or description... (Press / to focus)"
-              style="padding-left: 32px; font-size: 13.5px;"
               @input="onFilterChange"
             />
-            <span style="position: absolute; left: 10px; top: 9px; color: #94a3b8;">🔍</span>
+            <span class="search-icon">🔍</span>
           </div>
 
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <span style="font-size: 13px; font-weight: 700; color: #475569;">Stock Group:</span>
+          <div class="filter-group-select">
+            <label>Stock Group:</label>
             <select
               v-model="selectedGroupFilter"
-              style="font-size: 13px; font-weight: 600; padding: 6px 12px; background: #fff;"
               @change="onFilterChange"
             >
               <option value="">All Groups ({{ items.length }})</option>
@@ -63,20 +61,20 @@
         </div>
 
         <!-- Stock Group Quick Stats Bar -->
-        <div style="padding: 12px 20px; background: #fff; border-bottom: 1px solid var(--border); display: flex; gap: 16px; align-items: center; overflow-x: auto;">
+        <div class="stock-groups-bar">
           <div
             v-for="g in stockGroups"
             :key="g.name"
-            style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 6px; border: 1px solid #e2e8f0; background: #f8fafc; cursor: pointer; white-space: nowrap; font-size: 12px;"
-            :style="selectedGroupFilter === g.name ? 'border-color: #2563eb; background: #eff6ff;' : ''"
+            class="stock-group-chip"
+            :class="{ active: selectedGroupFilter === g.name }"
             @click="filterByGroup(g.name)"
           >
-            <span style="font-weight: 700; color: #0f172a;">{{ g.stock_group_name || g.name }}</span>
+            <span class="chip-name">{{ g.stock_group_name || g.name }}</span>
             <span class="badge badge-blue" style="font-size: 10px;">GST {{ g.default_gst_rate || 5 }}%</span>
-            <span style="color: #64748b; font-size: 11px;">({{ g.item_count || 0 }} items)</span>
+            <span class="chip-count">({{ g.item_count || 0 }} items)</span>
             <button
               type="button"
-              style="border: none; background: transparent; cursor: pointer; color: #64748b; padding: 0 2px;"
+              class="chip-edit-btn"
               title="Edit Stock Group"
               @click.stop="openStockGroupModal(g)"
             >
@@ -85,31 +83,37 @@
           </div>
         </div>
 
+        <!-- Mobile Scroll Cue Banner -->
+        <div class="mobile-scroll-cue">
+          <span class="cue-icon">↔</span>
+          <span>Scroll horizontally to view all commodity details</span>
+        </div>
+
         <!-- Table View -->
-        <div v-if="loading" style="padding: 40px; text-align: center; color: #64748b;">
+        <div v-if="loading" class="empty-state-box">
           ⏳ Loading commodities &amp; items...
         </div>
 
-        <div v-else-if="filteredItems.length === 0" style="padding: 50px 20px; text-align: center; color: #64748b;">
+        <div v-else-if="filteredItems.length === 0" class="empty-state-box">
           <div style="font-size: 38px; margin-bottom: 8px;">🌾</div>
           <div style="font-weight: 700; font-size: 15px; color: #334155;">No Commodities Found</div>
           <div style="font-size: 13px; margin-top: 4px;">Click <strong>"+ Add Commodity / Item"</strong> to create your first stock item.</div>
         </div>
 
-        <div v-else class="table-wrap">
-          <table class="data-table">
+        <div v-else class="items-table-wrapper">
+          <table class="data-table items-data-table">
             <thead>
               <tr>
                 <th style="width: 40px; text-align: center;">#</th>
                 <th style="min-width: 130px;">Item Code / ID</th>
-                <th style="min-width: 200px;">Commodity / Item Name</th>
-                <th style="width: 110px;">HSN Code</th>
-                <th style="width: 150px;">Stock Group</th>
-                <th style="width: 100px;">Stock UOM</th>
-                <th style="width: 180px;">GST Rate (CGST + SGST)</th>
-                <th style="width: 130px; text-align: right;">Std Rate (₹)</th>
-                <th>Description / Packaging</th>
-                <th style="width: 80px; text-align: center;">Action</th>
+                <th style="min-width: 180px;">Commodity / Item Name</th>
+                <th style="min-width: 95px;">HSN Code</th>
+                <th style="min-width: 130px;">Stock Group</th>
+                <th style="min-width: 90px;">Stock UOM</th>
+                <th style="min-width: 140px;">GST Rate (CGST + SGST)</th>
+                <th style="min-width: 110px; text-align: right;">Std Rate (₹)</th>
+                <th style="min-width: 150px;">Description / Packaging</th>
+                <th style="min-width: 80px; text-align: center;">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -123,7 +127,7 @@
                   {{ idx + 1 }}
                 </td>
 
-                <td style="font-weight: 700; color: #1e3a8a; font-family: var(--font-mono); font-size: 13px;">
+                <td style="font-weight: 700; color: #1e3a8a; font-family: var(--font-mono); font-size: 12.5px;">
                   {{ it.item_code || it.name }}
                 </td>
 
@@ -146,7 +150,7 @@
                   <span
                     class="badge"
                     :class="it.stock_group === 'Sugar' ? 'badge-blue' : (it.stock_group === 'Edible Oil' ? 'badge-amber' : 'badge-green')"
-                    style="font-size: 12px; font-weight: 700;"
+                    style="font-size: 11.5px; font-weight: 700;"
                   >
                     🏷️ {{ it.stock_group || 'Sugar' }}
                   </span>
@@ -158,10 +162,10 @@
 
                 <td>
                   <div style="display: flex; flex-direction: column;">
-                    <span style="font-weight: 700; color: #0f172a; font-size: 13px;">
+                    <span style="font-weight: 700; color: #0f172a; font-size: 12.5px;">
                       {{ it.gst_rate !== undefined ? it.gst_rate : 5.0 }}%
                     </span>
-                    <span style="font-size: 11px; color: #64748b;">
+                    <span style="font-size: 10.5px; color: #64748b;">
                       (CGST: {{ ((it.gst_rate || 5.0) / 2).toFixed(2) }}% + SGST: {{ ((it.gst_rate || 5.0) / 2).toFixed(2) }}%)
                     </span>
                   </div>
@@ -179,7 +183,7 @@
                   <button
                     type="button"
                     class="btn btn-secondary btn-sm"
-                    style="padding: 4px 8px; font-size: 12px;"
+                    style="padding: 3px 8px; font-size: 11.5px;"
                     @click="openItemModal(it)"
                   >
                     ✏️ Edit
@@ -348,3 +352,271 @@ const onGroupSaved = () => {
 }
 </script>
 
+<style scoped>
+.items-page-header {
+  border-bottom: 2px solid var(--blue);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.items-header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.items-filter-bar {
+  padding: 12px 16px;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin-bottom: 14px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-search-box {
+  flex: 1;
+  min-width: 200px;
+  position: relative;
+}
+
+.filter-search-box input {
+  width: 100%;
+  padding: 7px 10px 7px 32px;
+  font-size: 13px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.filter-group-select {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.filter-group-select label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.filter-group-select select {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  background: var(--input-bg);
+  min-width: 160px;
+}
+
+.stock-groups-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  padding: 4px 2px 14px 2px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.stock-group-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 12px;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+}
+
+.stock-group-chip:hover {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+}
+
+.stock-group-chip.active {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+  box-shadow: 0 0 0 1px var(--blue);
+}
+
+.chip-name {
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.chip-count {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.chip-edit-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 0 2px;
+  font-size: 11px;
+}
+
+.chip-edit-btn:hover {
+  color: var(--blue);
+}
+
+.items-table-wrapper {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.items-data-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.items-data-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--navy);
+  color: #ffffff;
+  padding: 9px 12px;
+  font-weight: 700;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  white-space: nowrap;
+}
+
+.items-data-table th:last-child {
+  border-right: none;
+}
+
+.items-data-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.items-data-table td:last-child {
+  border-right: none;
+}
+
+.items-data-table tr:hover {
+  background: var(--table-hover);
+}
+
+.empty-state-box {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* Mobile Scroll Cue Banner */
+.mobile-scroll-cue {
+  display: none;
+  background: var(--blue-soft, #eff6ff);
+  color: var(--blue, #2563eb);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(37, 99, 235, 0.15);
+  align-items: center;
+  gap: 6px;
+}
+
+.cue-icon {
+  font-size: 14px;
+  animation: nudgeHorizontal 1.5s infinite ease-in-out;
+}
+
+@keyframes nudgeHorizontal {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}
+
+@media (max-width: 1024px) {
+  .mobile-scroll-cue {
+    display: flex;
+  }
+}
+
+@media (max-width: 768px) {
+  .items-page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .items-header-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .items-header-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .items-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .filter-search-box {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .filter-group-select {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-group-select select {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .items-header-actions {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

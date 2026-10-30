@@ -1,6 +1,6 @@
 <template>
   <div v-if="show" class="modal-overlay" @click.self="close">
-    <div class="modal-dialog" style="max-width: 680px; width: 95%;">
+    <div class="modal-dialog item-modal-dialog">
       <div class="modal-header" style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);">
         <div class="modal-title" style="display: flex; align-items: center; gap: 8px; color: #fff;">
           <span>🌾</span>
@@ -16,14 +16,14 @@
         </button>
       </div>
 
-      <div class="modal-body" style="padding: 22px 26px;">
+      <div class="modal-body">
         <div class="notice-banner notice-info" style="margin-bottom: 20px;">
           <span>💡 Select the <strong>Stock Group</strong> (e.g., <strong>Sugar</strong>). When this item is traded in Purchase or Sell entries, the broker's brokerage rate configured for that Stock Group will automatically apply!</span>
         </div>
 
         <form @submit.prevent="submitSave">
           <!-- Item Code & Name -->
-          <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+          <div class="modal-grid-2col">
             <div class="form-group">
               <label style="font-weight: 700; color: #1e293b;">Item Code / Identifier *</label>
               <input
@@ -54,7 +54,7 @@
 
           <!-- Stock Group Selection (with inline quick Add Group) -->
           <div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 8px; padding: 14px 18px; margin-bottom: 18px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
               <label style="font-weight: 800; color: #1e40af; margin-bottom: 0;">
                 🏷️ Belonging Stock Group *
               </label>
@@ -87,7 +87,7 @@
           </div>
 
           <!-- UOM, HSN Code, GST Rate & Standard Rate -->
-          <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+          <div class="modal-grid-2col">
             <div class="form-group">
               <label style="font-weight: 700; color: #1e293b;">Stock UOM *</label>
               <select
@@ -122,7 +122,7 @@
             </div>
           </div>
 
-          <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+          <div class="modal-grid-2col">
             <div class="form-group">
               <label style="font-weight: 700; color: #1e293b;">GST Rate (%) *</label>
               <div style="position: relative; display: flex; align-items: center;">
@@ -176,7 +176,7 @@
             ></textarea>
           </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 16px;">
+          <div class="modal-footer-actions">
             <div style="font-size: 12px; color: #64748b;">
               <span v-if="form.isEdit" style="font-family: var(--font-mono);">Editing: {{ form.item_code }}</span>
             </div>
@@ -348,4 +348,86 @@ const submitSave = async () => {
   }
 }
 </script>
+
+<style scoped>
+.item-modal-dialog {
+  max-width: 680px;
+  width: 95%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-radius: 8px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 14px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.modal-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.modal-footer-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .item-modal-dialog {
+    width: 96% !important;
+    max-height: 94vh !important;
+  }
+
+  .modal-body {
+    padding: 14px 14px !important;
+  }
+
+  .modal-header {
+    padding: 10px 14px !important;
+  }
+
+  .modal-grid-2col {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .modal-footer-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .modal-footer-actions > div:last-child {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .modal-footer-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+</style>
 

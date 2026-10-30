@@ -1,6 +1,6 @@
 <template>
   <div v-if="show" class="modal-overlay" @click.self="close">
-    <div class="modal-dialog" style="max-width: 580px; width: 95%;">
+    <div class="modal-dialog stock-group-dialog">
       <div class="modal-header" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
         <div class="modal-title" style="display: flex; align-items: center; gap: 8px; color: #fff;">
           <span>📦</span>
@@ -16,7 +16,7 @@
         </button>
       </div>
 
-      <div class="modal-body" style="padding: 22px 24px;">
+      <div class="modal-body">
         <div class="notice-banner notice-info" style="margin-bottom: 20px;">
           <span>💡 Stock Groups (e.g., <strong>Sugar</strong>, <strong>Edible Oil</strong>, <strong>Grains</strong>) allow brokers to have unified brokerage terms across all grades and items belonging to that commodity class.</span>
         </div>
@@ -35,7 +35,7 @@
             />
           </div>
 
-          <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+          <div class="modal-grid-2col">
             <div class="form-group">
               <label style="font-weight: 700; color: #1e293b;">Default GST Rate (%) *</label>
               <div style="position: relative; display: flex; align-items: center;">
@@ -84,7 +84,7 @@
             ></textarea>
           </div>
 
-          <div style="display: flex; justify-content: flex-end; gap: 10px; align-items: center; border-top: 1px solid var(--border); padding-top: 16px;">
+          <div class="modal-footer-actions">
             <button type="button" class="btn btn-secondary" @click="close">
               Cancel (<kbd>Esc</kbd>)
             </button>
@@ -183,4 +183,78 @@ const submitSave = async () => {
   }
 }
 </script>
+
+<style scoped>
+.stock-group-dialog {
+  max-width: 580px;
+  width: 95%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-radius: 8px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 14px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.modal-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.modal-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+@media (max-width: 640px) {
+  .stock-group-dialog {
+    width: 96% !important;
+    max-height: 94vh !important;
+  }
+
+  .modal-body {
+    padding: 14px 14px !important;
+  }
+
+  .modal-header {
+    padding: 10px 14px !important;
+  }
+
+  .modal-grid-2col {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .modal-footer-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .modal-footer-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+</style>
 
