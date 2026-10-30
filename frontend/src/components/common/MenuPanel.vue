@@ -133,5 +133,11 @@ body.dark-mode .menu-item.active {
   color: #93c5fd;
   border-left-color: #3b82f6;
 }
+
+@media (max-width: 1024px) {
+  #menu-panel {
+    display: none !important;
+  }
+}
 </style>
 

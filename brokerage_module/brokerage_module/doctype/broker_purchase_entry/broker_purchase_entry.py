@@ -111,10 +111,12 @@ class BrokerPurchaseEntry(Document):
                 self.stock_group = first_row.stock_group
                 self.gst_rate = first_row.gst_rate
             else:
-                self.item_name = f"{first_row.item_name or first_row.item} (+{len(self.items)-1} more)"
+                item_names = [it.item_name or it.item for it in self.items if (it.item_name or it.item)]
+                self.item_name = ", ".join(dict.fromkeys(item_names))
+                distinct_groups = [it.stock_group for it in self.items if it.stock_group]
+                self.stock_group = ", ".join(dict.fromkeys(distinct_groups)) if distinct_groups else (first_row.stock_group or "Sugar")
                 self.rate = round(tot_trade / tot_qty, 2) if tot_qty else 0
                 self.brokerage_method = first_row.brokerage_method or "Percentage"
-                self.stock_group = first_row.stock_group
                 self.gst_rate = first_row.gst_rate
 
         else:

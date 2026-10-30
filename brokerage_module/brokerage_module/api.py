@@ -936,8 +936,10 @@ def save_purchase_entry(data=None):
     if items_list and isinstance(items_list, list) and len(items_list) > 0:
         first = items_list[0]
         doc.item = first.get("item")
-        doc.item_name = first.get("item_name") or (frappe.db.get_value("Item", doc.item, "item_name") if doc.item else "") or doc.item
-        doc.stock_group = first.get("stock_group") or (frappe.db.get_value("Item", doc.item, "stock_group") if doc.item else "Sugar")
+        all_item_names = [it.get("item_name") or (frappe.db.get_value("Item", it.get("item"), "item_name") if it.get("item") else "") or it.get("item") for it in items_list if it.get("item")]
+        doc.item_name = ", ".join(dict.fromkeys(filter(None, all_item_names))) or (first.get("item_name") or doc.item)
+        all_groups = [it.get("stock_group") or (frappe.db.get_value("Item", it.get("item"), "stock_group") if it.get("item") else "") for it in items_list if it.get("item")]
+        doc.stock_group = ", ".join(dict.fromkeys(filter(None, all_groups))) or "Sugar"
         doc.quantity = flt(sum(flt(it.get("quantity")) for it in items_list))
         doc.bags = flt(sum(flt(it.get("bags") or (flt(it.get("quantity")) * 2.0)) for it in items_list))
         doc.rate = flt(first.get("rate"))
@@ -1022,8 +1024,10 @@ def save_sales_entry(data=None):
     if items_list and isinstance(items_list, list) and len(items_list) > 0:
         first = items_list[0]
         doc.item = first.get("item")
-        doc.item_name = first.get("item_name") or (frappe.db.get_value("Item", doc.item, "item_name") if doc.item else "") or doc.item
-        doc.stock_group = first.get("stock_group") or (frappe.db.get_value("Item", doc.item, "stock_group") if doc.item else "Sugar")
+        all_item_names = [it.get("item_name") or (frappe.db.get_value("Item", it.get("item"), "item_name") if it.get("item") else "") or it.get("item") for it in items_list if it.get("item")]
+        doc.item_name = ", ".join(dict.fromkeys(filter(None, all_item_names))) or (first.get("item_name") or doc.item)
+        all_groups = [it.get("stock_group") or (frappe.db.get_value("Item", it.get("item"), "stock_group") if it.get("item") else "") for it in items_list if it.get("item")]
+        doc.stock_group = ", ".join(dict.fromkeys(filter(None, all_groups))) or "Sugar"
         doc.quantity = flt(sum(flt(it.get("quantity")) for it in items_list))
         doc.bags = flt(sum(flt(it.get("bags") or (flt(it.get("quantity")) * 2.0)) for it in items_list))
         doc.rate = flt(first.get("rate"))
@@ -1127,9 +1131,14 @@ def get_entries(entry_type="Purchase", from_date=None, to_date=None, broker=None
             )
             r["items"] = child_rows
             r["items_count"] = len(child_rows)
+            if child_rows:
+                r["stock_groups_list"] = list(dict.fromkeys(c.get("stock_group") for c in child_rows if c.get("stock_group")))
+            else:
+                r["stock_groups_list"] = [r.get("stock_group")] if r.get("stock_group") else []
         else:
             r["items"] = []
             r["items_count"] = 0
+            r["stock_groups_list"] = [r.get("stock_group")] if r.get("stock_group") else []
 
     total_trade = sum(flt(r.trade_amount) for r in records)
     total_brokerage = sum(flt(r.brokerage_amount) for r in records)
