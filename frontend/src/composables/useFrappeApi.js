@@ -168,6 +168,10 @@ export function useFrappeApi() {
     return await call('brokerage_module.brokerage_module.api.get_sales_outstanding_register', filters, 'GET')
   }
 
+  const getItemWiseRegister = async (filters = {}) => {
+    return await call('brokerage_module.brokerage_module.api.get_item_wise_register', filters, 'GET')
+  }
+
   const settleSalesEntry = async (payload = {}) => {
     return await call('brokerage_module.brokerage_module.api.settle_sales_entry', payload, 'POST')
   }
@@ -187,6 +191,7 @@ export function useFrappeApi() {
     getEntries,
     getDashboardSummary,
     getSalesOutstandingRegister,
+    getItemWiseRegister,
     settleSalesEntry,
     getStockGroups,
     saveStockGroup,

@@ -1,0 +1,206 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-10-30 06:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "item",
+  "item_name",
+  "stock_group",
+  "quantity",
+  "bags",
+  "rate",
+  "trade_amount",
+  "gst_rate",
+  "cgst_rate",
+  "cgst_amount",
+  "sgst_rate",
+  "sgst_amount",
+  "total_gst_amount",
+  "grand_total",
+  "brokerage_method",
+  "brokerage_rate",
+  "percentage",
+  "per_bag",
+  "per_quintal",
+  "brokerage_amount",
+  "rate_source",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "item.item_name",
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Item Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stock_group",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Stock Group",
+   "options": "Stock Group",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "quantity",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Quantity (Qtl)",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "bags",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Number of Bags"
+  },
+  {
+   "default": "0",
+   "fieldname": "rate",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Rate per Qtl (₹)",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "trade_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Trade Amount (₹)",
+   "read_only": 1
+  },
+  {
+   "default": "5.0",
+   "fieldname": "gst_rate",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "GST Rate (%)"
+  },
+  {
+   "default": "2.5",
+   "fieldname": "cgst_rate",
+   "fieldtype": "Percent",
+   "label": "CGST Rate (%)",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "cgst_amount",
+   "fieldtype": "Currency",
+   "label": "CGST Amount (₹)",
+   "read_only": 1
+  },
+  {
+   "default": "2.5",
+   "fieldname": "sgst_rate",
+   "fieldtype": "Percent",
+   "label": "SGST Rate (%)",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "sgst_amount",
+   "fieldtype": "Currency",
+   "label": "SGST Amount (₹)",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "total_gst_amount",
+   "fieldtype": "Currency",
+   "label": "Total GST (₹)",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "grand_total",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Grand Total (₹)",
+   "read_only": 1
+  },
+  {
+   "default": "Percentage",
+   "fieldname": "brokerage_method",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Brokerage Method",
+   "options": "Percentage\nPer Bag\nPer Quintal",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "brokerage_rate",
+   "fieldtype": "Float",
+   "label": "Brokerage Rate / Value"
+  },
+  {
+   "default": "0",
+   "fieldname": "percentage",
+   "fieldtype": "Percent",
+   "label": "Brokerage Percent (%)"
+  },
+  {
+   "default": "0",
+   "fieldname": "per_bag",
+   "fieldtype": "Currency",
+   "label": "Rate per Bag (₹)"
+  },
+  {
+   "default": "0",
+   "fieldname": "per_quintal",
+   "fieldtype": "Currency",
+   "label": "Rate per Quintal (₹)"
+  },
+  {
+   "default": "0",
+   "fieldname": "brokerage_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Brokerage Amount (₹)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rate_source",
+   "fieldtype": "Data",
+   "label": "Brokerage Terms Source",
+   "read_only": 1
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-30 06:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Brokerage Module",
+ "name": "Broker Voucher Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

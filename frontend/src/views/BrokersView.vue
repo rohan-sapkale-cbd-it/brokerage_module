@@ -53,10 +53,9 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Broker Name</th>
+                <th style="min-width: 220px;">Broker Name &amp; ID</th>
                 <th>Mobile</th>
-                <th>City</th>
+                <th>City &amp; State</th>
                 <th>Checkpoints / Roles</th>
                 <th>Purchase Rules</th>
                 <th>Sell Rules</th>
@@ -66,19 +65,22 @@
             </thead>
             <tbody>
               <tr v-if="filteredBrokers.length === 0">
-                <td colspan="9" style="text-align: center; padding: 30px; color: var(--muted);">
+                <td colspan="8" style="text-align: center; padding: 30px; color: var(--muted);">
                   {{ isLoading ? 'Loading brokers...' : 'No brokers found matching current filter.' }}
                 </td>
               </tr>
               <tr v-for="b in filteredBrokers" :key="b.name">
-                <td style="font-family: var(--font-mono); font-weight: 600; font-size: 12px; color: var(--blue);">
-                  {{ b.name }}
+                <td>
+                  <div style="font-weight: 800; font-size: 14px; color: var(--navy); display: flex; align-items: center; gap: 6px;">
+                    <span>👤</span>
+                    <span>{{ b.broker_name }}</span>
+                  </div>
+                  <div style="font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 2px;">
+                    ID: {{ b.name }}
+                  </div>
                 </td>
-                <td style="font-weight: 700; color: var(--navy);">
-                  {{ b.broker_name }}
-                </td>
-                <td>{{ b.mobile_no || '—' }}</td>
-                <td>{{ b.city || '—' }}</td>
+                <td style="font-weight: 600;">{{ b.mobile_no || '—' }}</td>
+                <td>{{ b.city ? `${b.city}${b.state ? ', ' + b.state : ''}` : '—' }}</td>
                 <td>
                   <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                     <span v-if="b.applicable_for_purchase" class="badge badge-blue">🛒 Purchase</span>
@@ -101,6 +103,7 @@
                   <button
                     type="button"
                     class="btn btn-secondary btn-sm"
+                    :title="`Edit rules & rates for ${b.broker_name}`"
                     @click="editBroker(b)"
                   >
                     ✏️ Edit Rates

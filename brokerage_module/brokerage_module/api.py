@@ -911,6 +911,7 @@ def get_rate_configurations(broker=None, limit=50):
 def save_purchase_entry(data=None):
     """
     Submits a new Broker Purchase Entry with computed brokerage and GST.
+    Supports both single-item and multi-item voucher payloads.
     """
     if isinstance(data, str):
         payload = json.loads(data)
@@ -929,28 +930,49 @@ def save_purchase_entry(data=None):
     if not b_name and frappe.db.exists("DocType", "Broker"):
         b_name = frappe.db.get_value("Broker", doc.broker, "broker_name")
     doc.broker_name = b_name or doc.broker
-    doc.item = payload.get("item")
-    doc.stock_group = payload.get("stock_group") or (frappe.db.get_value("Item", doc.item, "stock_group") if doc.item else "Sugar")
-    doc.quantity = flt(payload.get("quantity"))
-    doc.bags = flt(payload.get("bags") or doc.quantity * 2.0)
-    doc.rate = flt(payload.get("rate"))
-
-    # GST rate
-    if payload.get("gst_rate") is not None and str(payload.get("gst_rate")).strip() != "":
-        doc.gst_rate = flt(payload.get("gst_rate"))
-    elif doc.stock_group:
-        sg_gst = frappe.db.get_value("Stock Group", doc.stock_group, "default_gst_rate")
-        doc.gst_rate = flt(sg_gst) if sg_gst is not None else 5.0
-    else:
-        doc.gst_rate = 5.0
-
-    doc.brokerage_method = payload.get("brokerage_method") or "Percentage"
-    doc.brokerage_rate = flt(payload.get("brokerage_rate"))
-    doc.percentage = flt(payload.get("percentage") or (doc.brokerage_rate if doc.brokerage_method == "Percentage" else 0))
-    doc.per_bag = flt(payload.get("per_bag") or (doc.brokerage_rate if doc.brokerage_method == "Per Bag" else 0))
-    doc.per_quintal = flt(payload.get("per_quintal") or (doc.brokerage_rate if doc.brokerage_method == "Per Quintal" else 0))
-    doc.rate_source = payload.get("rate_source") or "Direct Entry"
     doc.remarks = payload.get("remarks")
+
+    items_list = payload.get("items")
+    if items_list and isinstance(items_list, list) and len(items_list) > 0:
+        for it in items_list:
+            doc.append("items", {
+                "item": it.get("item"),
+                "item_name": it.get("item_name") or (frappe.db.get_value("Item", it.get("item"), "item_name") if it.get("item") else ""),
+                "stock_group": it.get("stock_group") or (frappe.db.get_value("Item", it.get("item"), "stock_group") if it.get("item") else "Sugar"),
+                "quantity": flt(it.get("quantity")),
+                "bags": flt(it.get("bags") or (flt(it.get("quantity")) * 2.0)),
+                "rate": flt(it.get("rate")),
+                "gst_rate": flt(it.get("gst_rate") if it.get("gst_rate") is not None else 5.0),
+                "brokerage_method": it.get("brokerage_method") or "Percentage",
+                "brokerage_rate": flt(it.get("brokerage_rate")),
+                "percentage": flt(it.get("percentage") or (flt(it.get("brokerage_rate")) if (it.get("brokerage_method") or "Percentage") == "Percentage" else 0)),
+                "per_bag": flt(it.get("per_bag") or (flt(it.get("brokerage_rate")) if it.get("brokerage_method") == "Per Bag" else 0)),
+                "per_quintal": flt(it.get("per_quintal") or (flt(it.get("brokerage_rate")) if it.get("brokerage_method") == "Per Quintal" else 0)),
+                "rate_source": it.get("rate_source") or "Direct Entry",
+                "remarks": it.get("remarks")
+            })
+    else:
+        doc.item = payload.get("item")
+        doc.stock_group = payload.get("stock_group") or (frappe.db.get_value("Item", doc.item, "stock_group") if doc.item else "Sugar")
+        doc.quantity = flt(payload.get("quantity"))
+        doc.bags = flt(payload.get("bags") or doc.quantity * 2.0)
+        doc.rate = flt(payload.get("rate"))
+
+        # GST rate
+        if payload.get("gst_rate") is not None and str(payload.get("gst_rate")).strip() != "":
+            doc.gst_rate = flt(payload.get("gst_rate"))
+        elif doc.stock_group:
+            sg_gst = frappe.db.get_value("Stock Group", doc.stock_group, "default_gst_rate")
+            doc.gst_rate = flt(sg_gst) if sg_gst is not None else 5.0
+        else:
+            doc.gst_rate = 5.0
+
+        doc.brokerage_method = payload.get("brokerage_method") or "Percentage"
+        doc.brokerage_rate = flt(payload.get("brokerage_rate"))
+        doc.percentage = flt(payload.get("percentage") or (doc.brokerage_rate if doc.brokerage_method == "Percentage" else 0))
+        doc.per_bag = flt(payload.get("per_bag") or (doc.brokerage_rate if doc.brokerage_method == "Per Bag" else 0))
+        doc.per_quintal = flt(payload.get("per_quintal") or (doc.brokerage_rate if doc.brokerage_method == "Per Quintal" else 0))
+        doc.rate_source = payload.get("rate_source") or "Direct Entry"
 
     doc.flags.ignore_permissions = True
     doc.flags.ignore_links = True
@@ -965,6 +987,7 @@ def save_purchase_entry(data=None):
 def save_sales_entry(data=None):
     """
     Submits a new Broker Sales Entry with computed brokerage and GST.
+    Supports both single-item and multi-item voucher payloads.
     """
     if isinstance(data, str):
         payload = json.loads(data)
@@ -983,28 +1006,49 @@ def save_sales_entry(data=None):
     if not b_name and frappe.db.exists("DocType", "Broker"):
         b_name = frappe.db.get_value("Broker", doc.broker, "broker_name")
     doc.broker_name = b_name or doc.broker
-    doc.item = payload.get("item")
-    doc.stock_group = payload.get("stock_group") or (frappe.db.get_value("Item", doc.item, "stock_group") if doc.item else "Sugar")
-    doc.quantity = flt(payload.get("quantity"))
-    doc.bags = flt(payload.get("bags") or doc.quantity * 2.0)
-    doc.rate = flt(payload.get("rate"))
-
-    # GST rate
-    if payload.get("gst_rate") is not None and str(payload.get("gst_rate")).strip() != "":
-        doc.gst_rate = flt(payload.get("gst_rate"))
-    elif doc.stock_group:
-        sg_gst = frappe.db.get_value("Stock Group", doc.stock_group, "default_gst_rate")
-        doc.gst_rate = flt(sg_gst) if sg_gst is not None else 5.0
-    else:
-        doc.gst_rate = 5.0
-
-    doc.brokerage_method = payload.get("brokerage_method") or "Percentage"
-    doc.brokerage_rate = flt(payload.get("brokerage_rate"))
-    doc.percentage = flt(payload.get("percentage") or (doc.brokerage_rate if doc.brokerage_method == "Percentage" else 0))
-    doc.per_bag = flt(payload.get("per_bag") or (doc.brokerage_rate if doc.brokerage_method == "Per Bag" else 0))
-    doc.per_quintal = flt(payload.get("per_quintal") or (doc.brokerage_rate if doc.brokerage_method == "Per Quintal" else 0))
-    doc.rate_source = payload.get("rate_source") or "Direct Entry"
     doc.remarks = payload.get("remarks")
+
+    items_list = payload.get("items")
+    if items_list and isinstance(items_list, list) and len(items_list) > 0:
+        for it in items_list:
+            doc.append("items", {
+                "item": it.get("item"),
+                "item_name": it.get("item_name") or (frappe.db.get_value("Item", it.get("item"), "item_name") if it.get("item") else ""),
+                "stock_group": it.get("stock_group") or (frappe.db.get_value("Item", it.get("item"), "stock_group") if it.get("item") else "Sugar"),
+                "quantity": flt(it.get("quantity")),
+                "bags": flt(it.get("bags") or (flt(it.get("quantity")) * 2.0)),
+                "rate": flt(it.get("rate")),
+                "gst_rate": flt(it.get("gst_rate") if it.get("gst_rate") is not None else 5.0),
+                "brokerage_method": it.get("brokerage_method") or "Percentage",
+                "brokerage_rate": flt(it.get("brokerage_rate")),
+                "percentage": flt(it.get("percentage") or (flt(it.get("brokerage_rate")) if (it.get("brokerage_method") or "Percentage") == "Percentage" else 0)),
+                "per_bag": flt(it.get("per_bag") or (flt(it.get("brokerage_rate")) if it.get("brokerage_method") == "Per Bag" else 0)),
+                "per_quintal": flt(it.get("per_quintal") or (flt(it.get("brokerage_rate")) if it.get("brokerage_method") == "Per Quintal" else 0)),
+                "rate_source": it.get("rate_source") or "Direct Entry",
+                "remarks": it.get("remarks")
+            })
+    else:
+        doc.item = payload.get("item")
+        doc.stock_group = payload.get("stock_group") or (frappe.db.get_value("Item", doc.item, "stock_group") if doc.item else "Sugar")
+        doc.quantity = flt(payload.get("quantity"))
+        doc.bags = flt(payload.get("bags") or doc.quantity * 2.0)
+        doc.rate = flt(payload.get("rate"))
+
+        # GST rate
+        if payload.get("gst_rate") is not None and str(payload.get("gst_rate")).strip() != "":
+            doc.gst_rate = flt(payload.get("gst_rate"))
+        elif doc.stock_group:
+            sg_gst = frappe.db.get_value("Stock Group", doc.stock_group, "default_gst_rate")
+            doc.gst_rate = flt(sg_gst) if sg_gst is not None else 5.0
+        else:
+            doc.gst_rate = 5.0
+
+        doc.brokerage_method = payload.get("brokerage_method") or "Percentage"
+        doc.brokerage_rate = flt(payload.get("brokerage_rate"))
+        doc.percentage = flt(payload.get("percentage") or (doc.brokerage_rate if doc.brokerage_method == "Percentage" else 0))
+        doc.per_bag = flt(payload.get("per_bag") or (doc.brokerage_rate if doc.brokerage_method == "Per Bag" else 0))
+        doc.per_quintal = flt(payload.get("per_quintal") or (doc.brokerage_rate if doc.brokerage_method == "Per Quintal" else 0))
+        doc.rate_source = payload.get("rate_source") or "Direct Entry"
 
     doc.flags.ignore_permissions = True
     doc.flags.ignore_links = True
@@ -1047,6 +1091,26 @@ def get_entries(entry_type="Purchase", from_date=None, to_date=None, broker=None
         limit=int(limit or 100),
     )
 
+    # Attach child items if present
+    has_voucher_item_dt = frappe.db.exists("DocType", "Broker Voucher Item")
+    for r in records:
+        if has_voucher_item_dt:
+            child_rows = frappe.get_all(
+                "Broker Voucher Item",
+                filters={"parent": r.name, "parenttype": doctype},
+                fields=[
+                    "item", "item_name", "stock_group", "quantity", "bags", "rate",
+                    "trade_amount", "gst_rate", "cgst_amount", "sgst_amount", "total_gst_amount",
+                    "grand_total", "brokerage_method", "brokerage_rate", "brokerage_amount", "rate_source"
+                ],
+                order_by="idx asc"
+            )
+            r["items"] = child_rows
+            r["items_count"] = len(child_rows)
+        else:
+            r["items"] = []
+            r["items_count"] = 0
+
     total_trade = sum(flt(r.trade_amount) for r in records)
     total_brokerage = sum(flt(r.brokerage_amount) for r in records)
     total_qty = sum(flt(r.quantity) for r in records)
@@ -1061,6 +1125,189 @@ def get_entries(entry_type="Purchase", from_date=None, to_date=None, broker=None
         "total_qty": round(total_qty, 2),
         "total_gst": round(total_gst, 2),
         "total_grand": round(total_grand, 2),
+    }
+
+
+@frappe.whitelist(methods=["GET", "POST"], allow_guest=True)
+def get_item_wise_register(from_date=None, to_date=None, broker=None, item=None, stock_group=None):
+    """
+    Returns item-wise aggregated trading and brokerage register.
+    Consolidates both purchase and sales vouchers per commodity/item.
+    """
+    filters_p = {}
+    filters_s = {}
+    if from_date and to_date:
+        filters_p["posting_date"] = ["between", [from_date, to_date]]
+        filters_s["posting_date"] = ["between", [from_date, to_date]]
+    elif from_date:
+        filters_p["posting_date"] = [">=", from_date]
+        filters_s["posting_date"] = [">=", from_date]
+    elif to_date:
+        filters_p["posting_date"] = ["<=", to_date]
+        filters_s["posting_date"] = ["<=", to_date]
+
+    if broker:
+        filters_p["broker"] = broker
+        filters_s["broker"] = broker
+
+    has_voucher_item_dt = frappe.db.exists("DocType", "Broker Voucher Item")
+
+    # Fetch all purchase entries
+    p_entries = frappe.get_all(
+        "Broker Purchase Entry",
+        filters=filters_p,
+        fields=[
+            "name", "posting_date", "broker", "broker_name", "item", "item_name", "stock_group",
+            "quantity", "bags", "rate", "trade_amount", "brokerage_amount", "grand_total", "status"
+        ],
+        order_by="posting_date desc, creation desc"
+    )
+
+    # Fetch all sales entries
+    s_entries = frappe.get_all(
+        "Broker Sales Entry",
+        filters=filters_s,
+        fields=[
+            "name", "posting_date", "broker", "broker_name", "item", "item_name", "stock_group",
+            "quantity", "bags", "rate", "trade_amount", "brokerage_amount", "grand_total", "status"
+        ],
+        order_by="posting_date desc, creation desc"
+    )
+
+    items_map = {}
+
+    def process_entry(entry, voucher_type):
+        child_rows = []
+        if has_voucher_item_dt:
+            child_rows = frappe.get_all(
+                "Broker Voucher Item",
+                filters={"parent": entry.name, "parenttype": "Broker Purchase Entry" if voucher_type == "Purchase" else "Broker Sales Entry"},
+                fields=[
+                    "item", "item_name", "stock_group", "quantity", "bags", "rate",
+                    "trade_amount", "brokerage_method", "brokerage_rate", "brokerage_amount", "grand_total"
+                ]
+            )
+
+        if not child_rows and entry.item:
+            child_rows = [{
+                "item": entry.item,
+                "item_name": entry.item_name or entry.item,
+                "stock_group": entry.stock_group or "Sugar",
+                "quantity": flt(entry.quantity),
+                "bags": flt(entry.bags),
+                "rate": flt(entry.rate),
+                "trade_amount": flt(entry.trade_amount),
+                "brokerage_method": "Direct",
+                "brokerage_rate": 0,
+                "brokerage_amount": flt(entry.brokerage_amount),
+                "grand_total": flt(entry.grand_total or entry.trade_amount)
+            }]
+
+        for row in child_rows:
+            i_code = row.get("item")
+            if not i_code:
+                continue
+
+            # Item and Stock group filters
+            if item and i_code != item:
+                continue
+            i_sg = row.get("stock_group") or "Sugar"
+            if stock_group and i_sg != stock_group:
+                continue
+
+            i_name = row.get("item_name") or i_code
+            if i_code not in items_map:
+                items_map[i_code] = {
+                    "item_code": i_code,
+                    "item_name": i_name,
+                    "stock_group": i_sg,
+                    "purchase_qty": 0.0,
+                    "purchase_bags": 0.0,
+                    "purchase_trade": 0.0,
+                    "purchase_brokerage": 0.0,
+                    "sales_qty": 0.0,
+                    "sales_bags": 0.0,
+                    "sales_trade": 0.0,
+                    "sales_brokerage": 0.0,
+                    "total_trade": 0.0,
+                    "total_brokerage": 0.0,
+                    "vouchers_count": 0,
+                    "vouchers": []
+                }
+
+            rec = items_map[i_code]
+            qty = flt(row.get("quantity"))
+            bags = flt(row.get("bags"))
+            trade = flt(row.get("trade_amount"))
+            brk = flt(row.get("brokerage_amount"))
+
+            if voucher_type == "Purchase":
+                rec["purchase_qty"] += qty
+                rec["purchase_bags"] += bags
+                rec["purchase_trade"] += trade
+                rec["purchase_brokerage"] += brk
+            else:
+                rec["sales_qty"] += qty
+                rec["sales_bags"] += bags
+                rec["sales_trade"] += trade
+                rec["sales_brokerage"] += brk
+
+            rec["total_trade"] += trade
+            rec["total_brokerage"] += brk
+            rec["vouchers_count"] += 1
+            rec["vouchers"].append({
+                "voucher": entry.name,
+                "posting_date": str(entry.posting_date),
+                "voucher_type": voucher_type,
+                "broker": entry.broker,
+                "broker_name": entry.broker_name,
+                "quantity": qty,
+                "bags": bags,
+                "rate": flt(row.get("rate")),
+                "trade_amount": trade,
+                "brokerage_amount": brk,
+                "grand_total": flt(row.get("grand_total") or trade),
+                "status": entry.status
+            })
+
+    for p in p_entries:
+        process_entry(p, "Purchase")
+    for s in s_entries:
+        process_entry(s, "Sell")
+
+    # Round all values
+    item_list = list(items_map.values())
+    for itm in item_list:
+        itm["purchase_qty"] = round(itm["purchase_qty"], 2)
+        itm["purchase_bags"] = round(itm["purchase_bags"], 2)
+        itm["purchase_trade"] = round(itm["purchase_trade"], 2)
+        itm["purchase_brokerage"] = round(itm["purchase_brokerage"], 2)
+        itm["sales_qty"] = round(itm["sales_qty"], 2)
+        itm["sales_bags"] = round(itm["sales_bags"], 2)
+        itm["sales_trade"] = round(itm["sales_trade"], 2)
+        itm["sales_brokerage"] = round(itm["sales_brokerage"], 2)
+        itm["total_trade"] = round(itm["total_trade"], 2)
+        itm["total_brokerage"] = round(itm["total_brokerage"], 2)
+        itm["net_qty"] = round(itm["purchase_qty"] - itm["sales_qty"], 2)
+
+    item_list.sort(key=lambda x: x["total_trade"], reverse=True)
+
+    summary = {
+        "total_items": len(item_list),
+        "total_purchase_qty": round(sum(i["purchase_qty"] for i in item_list), 2),
+        "total_purchase_trade": round(sum(i["purchase_trade"] for i in item_list), 2),
+        "total_purchase_brokerage": round(sum(i["purchase_brokerage"] for i in item_list), 2),
+        "total_sales_qty": round(sum(i["sales_qty"] for i in item_list), 2),
+        "total_sales_trade": round(sum(i["sales_trade"] for i in item_list), 2),
+        "total_sales_brokerage": round(sum(i["sales_brokerage"] for i in item_list), 2),
+        "overall_trade": round(sum(i["total_trade"] for i in item_list), 2),
+        "overall_brokerage": round(sum(i["total_brokerage"] for i in item_list), 2),
+        "total_vouchers": sum(i["vouchers_count"] for i in item_list)
+    }
+
+    return {
+        "items": item_list,
+        "summary": summary
     }
 
 

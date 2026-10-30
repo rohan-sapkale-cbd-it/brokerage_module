@@ -9,8 +9,8 @@
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
           <div class="modal-title" style="display: flex; align-items: center; gap: 10px;">
-            <span>{{ form.name ? '✏️ Edit Broker Master' : '➕ Create New Broker Master' }}</span>
-            <span v-if="form.name" class="badge badge-blue" style="font-size: 11px;">{{ form.name }}</span>
+            <span>{{ form.name ? `✏️ Editing: ${form.broker_name || form.name}` : '➕ Create New Broker Master' }}</span>
+            <span v-if="form.name" class="badge badge-blue" style="font-size: 11px; font-family: var(--font-mono);">ID: {{ form.name }}</span>
             <span v-if="isFullscreen" class="badge badge-purple" style="font-size: 11px;">⛶ Full Screen Mode</span>
           </div>
 

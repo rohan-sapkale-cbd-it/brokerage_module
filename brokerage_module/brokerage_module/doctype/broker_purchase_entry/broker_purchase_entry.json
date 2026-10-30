@@ -12,6 +12,7 @@
   "column_break_parties",
   "broker",
   "broker_name",
+  "items",
   "section_trade",
   "item",
   "item_name",
@@ -87,6 +88,12 @@
    "in_list_view": 1,
    "label": "Broker Name",
    "read_only": 1
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Commodity / Item Entries",
+   "options": "Broker Voucher Item"
   },
   {
    "fieldname": "section_trade",
@@ -218,7 +225,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Brokerage Method",
-   "options": "Percentage\nPer Bag\nPer Quintal",
+   "options": "Percentage\nPer Bag\nPer Quintal\nMulti-Item",
    "reqd": 1
   },
   {

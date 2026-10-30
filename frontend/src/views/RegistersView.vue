@@ -9,16 +9,18 @@
               <span>📋 Trade &amp; Brokerage Audit Registers</span>
               <span
                 class="badge"
-                :class="currentType === 'Purchase' ? 'badge-blue' : (currentType === 'Sell' ? 'badge-green' : 'badge-amber')"
+                :class="currentType === 'Purchase' ? 'badge-blue' : (currentType === 'Sell' ? 'badge-green' : (currentType === 'ItemWise' ? 'badge-purple' : 'badge-amber'))"
               >
-                {{ currentType === 'SalesOutstanding' ? 'Sales Outstanding Register' : (currentType + ' Register') }}
+                {{ currentType === 'SalesOutstanding' ? 'Sales Outstanding Register' : (currentType === 'ItemWise' ? 'Item-Wise Register' : (currentType + ' Register')) }}
               </span>
             </div>
             <div class="page-subtitle">
               {{
                 currentType === 'SalesOutstanding'
                   ? 'Audit pending sales trade collections, broker commission outstandings, and ageing dues.'
-                  : 'View all booked ' + currentType + ' entries with exact brokerage calculations and source audit.'
+                  : (currentType === 'ItemWise'
+                    ? 'Audit commodity and item-wise trading volumes, net quintals, and total brokerage earnings.'
+                    : 'View all booked ' + currentType + ' entries with exact brokerage calculations and source audit.')
               }}
             </div>
           </div>
@@ -40,6 +42,15 @@
               @click="switchType('Sell')"
             >
               🏷️ Sales Register (<kbd style="font-size: 10px;">S</kbd>)
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm"
+              :class="currentType === 'ItemWise' ? 'btn-primary' : 'btn-secondary'"
+              style="border-color: #8b5cf6;"
+              @click="switchType('ItemWise')"
+            >
+              📦 Item-Wise Register (<kbd style="font-size: 10px; background: #f5f3ff; color: #7c3aed;">I</kbd>)
             </button>
             <button
               type="button"
@@ -139,9 +150,6 @@
                   <th>Date</th>
                   <th>Broker (Sole Party)</th>
                   <th>Commodity &amp; Group</th>
-                  <th style="text-align: right;">Qty (Qtl)</th>
-                  <th style="text-align: right;">Bags</th>
-                  <th style="text-align: right;">Rate (₹)</th>
                   <th style="text-align: right;">Trade Subtotal (₹)</th>
                   <th style="text-align: right;">GST Rate</th>
                   <th style="text-align: right;">Grand Total (₹)</th>
@@ -153,7 +161,7 @@
               </thead>
               <tbody>
                 <tr v-if="records.length === 0">
-                  <td colspan="14" style="text-align: center; padding: 36px; color: var(--muted);">
+                  <td colspan="11" style="text-align: center; padding: 36px; color: var(--muted);">
                     No {{ currentType }} entries found for selected criteria.
                   </td>
                 </tr>
@@ -171,9 +179,6 @@
                       🏷️ {{ r.stock_group }}
                     </span>
                   </td>
-                  <td style="text-align: right;">{{ formatNumber(r.quantity) }}</td>
-                  <td style="text-align: right;">{{ formatNumber(r.bags) }}</td>
-                  <td style="text-align: right;">₹{{ formatCurrency(r.rate) }}</td>
                   <td style="text-align: right; font-weight: 600; color: var(--navy);">
                     ₹{{ formatCurrency(r.trade_amount) }}
                   </td>
@@ -196,6 +201,212 @@
                     <span class="badge badge-green">{{ r.status }}</span>
                   </td>
                 </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+
+        <!-- ======================================================== -->
+        <!-- VIEW 2.5: ITEM-WISE COMMODITY REGISTER                   -->
+        <!-- ======================================================== -->
+        <template v-else-if="currentType === 'ItemWise'">
+          <!-- Filter Bar -->
+          <div style="background: var(--panel-soft); padding: 12px 16px; border-radius: 6px; border: 1px solid var(--line); margin-bottom: 16px; display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap;">
+            <div class="form-group" style="min-width: 140px;">
+              <label>From Date</label>
+              <input v-model="itemFilters.from_date" type="date" @change="loadItemWiseData" />
+            </div>
+
+            <div class="form-group" style="min-width: 140px;">
+              <label>To Date</label>
+              <input v-model="itemFilters.to_date" type="date" @change="loadItemWiseData" />
+            </div>
+
+            <div class="form-group" style="min-width: 240px;">
+              <label>Filter by Broker</label>
+              <TypeaheadSelect
+                v-model="itemFilters.broker"
+                :label="itemFilters.broker_name"
+                placeholder="All Brokers..."
+                :fetch-fn="searchBrokers"
+                @change="onItemBrokerFilter"
+              />
+            </div>
+
+            <button type="button" class="btn btn-secondary btn-sm" style="margin-bottom: 2px;" @click="resetItemFilters">
+              Reset Filters
+            </button>
+          </div>
+
+          <!-- Metric Summary Ribbon -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 18px;">
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px;">
+              <div style="font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase;">Total Commodities</div>
+              <div style="font-size: 20px; font-weight: 800; color: #7c3aed; margin-top: 2px;">
+                {{ itemSummary.total_items }}
+              </div>
+            </div>
+
+            <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 12px 14px;">
+              <div style="font-size: 11px; color: var(--blue); font-weight: 700; text-transform: uppercase;">Purchase Volume</div>
+              <div style="font-size: 18px; font-weight: 800; color: var(--blue); margin-top: 2px;">
+                {{ formatNumber(itemSummary.total_purchase_qty) }} Qtl
+              </div>
+              <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">
+                Trade: ₹{{ formatCurrency(itemSummary.total_purchase_trade) }}
+              </div>
+            </div>
+
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 12px 14px;">
+              <div style="font-size: 11px; color: #166534; font-weight: 700; text-transform: uppercase;">Sales Volume</div>
+              <div style="font-size: 18px; font-weight: 800; color: #166534; margin-top: 2px;">
+                {{ formatNumber(itemSummary.total_sales_qty) }} Qtl
+              </div>
+              <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">
+                Trade: ₹{{ formatCurrency(itemSummary.total_sales_trade) }}
+              </div>
+            </div>
+
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px;">
+              <div style="font-size: 11px; color: var(--navy); font-weight: 700; text-transform: uppercase;">Overall Trade Volume</div>
+              <div style="font-size: 20px; font-weight: 800; color: var(--navy); margin-top: 2px;">
+                ₹ {{ formatCurrency(itemSummary.overall_trade) }}
+              </div>
+            </div>
+
+            <div style="background: var(--green-soft); border: 1px solid rgba(27, 135, 63, 0.2); border-radius: 6px; padding: 12px 14px;">
+              <div style="font-size: 11px; color: var(--green); font-weight: 700; text-transform: uppercase;">Combined Brokerage</div>
+              <div style="font-size: 20px; font-weight: 800; color: var(--green); margin-top: 2px;">
+                ₹ {{ formatCurrency(itemSummary.overall_brokerage) }}
+              </div>
+            </div>
+
+            <div style="background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px;">
+              <div style="font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase;">Total Vouchers</div>
+              <div style="font-size: 20px; font-weight: 800; color: var(--navy); margin-top: 2px;">
+                {{ itemSummary.total_vouchers }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Table of Item-Wise Entries -->
+          <div style="border: 1px solid var(--line); border-radius: 6px; overflow-x: auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Commodity / Item</th>
+                  <th>Stock Group</th>
+                  <th style="text-align: right;">Purchase Qty (Qtl)</th>
+                  <th style="text-align: right;">Purchase Trade (₹)</th>
+                  <th style="text-align: right;">Purchase Brk (₹)</th>
+                  <th style="text-align: right;">Sales Qty (Qtl)</th>
+                  <th style="text-align: right;">Sales Trade (₹)</th>
+                  <th style="text-align: right;">Sales Brk (₹)</th>
+                  <th style="text-align: right;">Net Qty (Qtl)</th>
+                  <th style="text-align: right;">Total Trade (₹)</th>
+                  <th style="text-align: right;">Total Brk (₹)</th>
+                  <th style="text-align: center;">Transactions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="itemRecords.length === 0">
+                  <td colspan="12" style="text-align: center; padding: 36px; color: var(--muted);">
+                    No item-wise data found for selected criteria.
+                  </td>
+                </tr>
+                <template v-for="itm in itemRecords" :key="itm.item_code">
+                  <tr>
+                    <td>
+                      <div style="font-weight: 700; color: var(--navy);">{{ itm.item_name }}</div>
+                      <div style="font-size: 11px; color: var(--muted); font-family: var(--font-mono);">{{ itm.item_code }}</div>
+                    </td>
+                    <td>
+                      <span class="badge badge-purple" style="font-size: 11px;">🏷️ {{ itm.stock_group }}</span>
+                    </td>
+                    <td style="text-align: right; color: var(--blue); font-weight: 600;">
+                      {{ formatNumber(itm.purchase_qty) }}
+                    </td>
+                    <td style="text-align: right;">₹{{ formatCurrency(itm.purchase_trade) }}</td>
+                    <td style="text-align: right; color: var(--blue);">₹{{ formatCurrency(itm.purchase_brokerage) }}</td>
+                    <td style="text-align: right; color: #166534; font-weight: 600;">
+                      {{ formatNumber(itm.sales_qty) }}
+                    </td>
+                    <td style="text-align: right;">₹{{ formatCurrency(itm.sales_trade) }}</td>
+                    <td style="text-align: right; color: #166534;">₹{{ formatCurrency(itm.sales_brokerage) }}</td>
+                    <td style="text-align: right; font-weight: 700;" :style="itm.net_qty >= 0 ? 'color: var(--blue);' : 'color: #dc2626;'">
+                      {{ formatNumber(itm.net_qty) }}
+                    </td>
+                    <td style="text-align: right; font-weight: 700; color: var(--navy);">
+                      ₹{{ formatCurrency(itm.total_trade) }}
+                    </td>
+                    <td style="text-align: right; font-weight: 800; color: var(--green);">
+                      ₹{{ formatCurrency(itm.total_brokerage) }}
+                    </td>
+                    <td style="text-align: center;">
+                      <button
+                        type="button"
+                        class="btn btn-secondary btn-sm"
+                        style="font-size: 11px;"
+                        @click="toggleItemExpand(itm.item_code)"
+                      >
+                        {{ expandedItems[itm.item_code] ? '▲ Hide' : `▼ View (${itm.vouchers.length})` }}
+                      </button>
+                    </td>
+                  </tr>
+
+                  <!-- Collapsible Item Transactions Table -->
+                  <tr v-if="expandedItems[itm.item_code]">
+                    <td colspan="12" style="background: var(--panel-soft); padding: 12px 18px;">
+                      <div style="font-weight: 700; font-size: 12.5px; color: var(--navy); margin-bottom: 8px;">
+                        📜 Booked Vouchers for {{ itm.item_name }} ({{ itm.item_code }}):
+                      </div>
+                      <table class="data-table" style="background: var(--panel); border: 1px solid var(--line);">
+                        <thead>
+                          <tr>
+                            <th>Voucher ID</th>
+                            <th>Type</th>
+                            <th>Date</th>
+                            <th>Broker (Sole Party)</th>
+                            <th style="text-align: right;">Qty (Qtl)</th>
+                            <th style="text-align: right;">Bags</th>
+                            <th style="text-align: right;">Rate (₹)</th>
+                            <th style="text-align: right;">Trade Amount (₹)</th>
+                            <th style="text-align: right;">Brokerage (₹)</th>
+                            <th style="text-align: center;">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="v in itm.vouchers" :key="v.voucher + v.voucher_type">
+                            <td style="font-family: var(--font-mono); font-weight: 600;">
+                              <a :href="`/app/${v.voucher_type === 'Purchase' ? 'broker-purchase-entry' : 'broker-sales-entry'}/${v.voucher}`" target="_blank" style="color: var(--blue); text-decoration: none;">
+                                {{ v.voucher }} ↗
+                              </a>
+                            </td>
+                            <td>
+                              <span class="badge" :class="v.voucher_type === 'Purchase' ? 'badge-blue' : 'badge-green'">
+                                {{ v.voucher_type }}
+                              </span>
+                            </td>
+                            <td>{{ v.posting_date }}</td>
+                            <td style="font-weight: 600;">{{ v.broker_name || v.broker }}</td>
+                            <td style="text-align: right;">{{ formatNumber(v.quantity) }}</td>
+                            <td style="text-align: right;">{{ formatNumber(v.bags) }}</td>
+                            <td style="text-align: right;">₹{{ formatCurrency(v.rate) }}</td>
+                            <td style="text-align: right; font-weight: 600; color: var(--navy);">
+                              ₹{{ formatCurrency(v.trade_amount) }}
+                            </td>
+                            <td style="text-align: right; font-weight: 800; color: var(--green);">
+                              ₹{{ formatCurrency(v.brokerage_amount) }}
+                            </td>
+                            <td style="text-align: center;">
+                              <span class="badge badge-green">{{ v.status }}</span>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                </template>
               </tbody>
             </table>
           </div>
@@ -595,7 +806,7 @@
     <MenuPanel
       section-title="Registers Menu"
       :items="menuItems"
-      :active-index="currentType === 'Purchase' ? 1 : (currentType === 'Sell' ? 2 : 3)"
+      :active-index="currentType === 'SalesOutstanding' ? 1 : (currentType === 'ItemWise' ? 2 : (currentType === 'Purchase' ? 3 : 4))"
       @select="handleSelect"
     />
 
@@ -668,9 +879,9 @@ import MenuPanel from '../components/common/MenuPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { getEntries, searchEntities, getSalesOutstandingRegister, settleSalesEntry } = useFrappeApi()
+const { getEntries, searchEntities, getSalesOutstandingRegister, settleSalesEntry, getItemWiseRegister } = useFrappeApi()
 
-// Current register type: 'Purchase' | 'Sell' | 'SalesOutstanding'
+// Current register type: 'Purchase' | 'Sell' | 'ItemWise' | 'SalesOutstanding'
 const currentType = ref('Purchase')
 
 // Standard Purchase & Sales state
@@ -688,6 +899,63 @@ const filters = reactive({
   broker: '',
   broker_name: '',
 })
+
+// Item-Wise Register state
+const itemRecords = ref([])
+const expandedItems = reactive({})
+const itemSummary = reactive({
+  total_items: 0,
+  total_purchase_qty: 0,
+  total_purchase_trade: 0,
+  total_purchase_brokerage: 0,
+  total_sales_qty: 0,
+  total_sales_trade: 0,
+  total_sales_brokerage: 0,
+  overall_trade: 0,
+  overall_brokerage: 0,
+  total_vouchers: 0,
+})
+
+const itemFilters = reactive({
+  from_date: '',
+  to_date: '',
+  broker: '',
+  broker_name: '',
+})
+
+const toggleItemExpand = (itemCode) => {
+  expandedItems[itemCode] = !expandedItems[itemCode]
+}
+
+const onItemBrokerFilter = (b) => {
+  itemFilters.broker = b ? (b.id || b.name) : ''
+  itemFilters.broker_name = b ? (b.label || b.name) : ''
+  loadItemWiseData()
+}
+
+const resetItemFilters = () => {
+  itemFilters.from_date = ''
+  itemFilters.to_date = ''
+  itemFilters.broker = ''
+  itemFilters.broker_name = ''
+  loadItemWiseData()
+}
+
+const loadItemWiseData = async () => {
+  try {
+    const res = await getItemWiseRegister({
+      from_date: itemFilters.from_date || undefined,
+      to_date: itemFilters.to_date || undefined,
+      broker: itemFilters.broker || undefined,
+    })
+    itemRecords.value = res.items || []
+    if (res.summary) {
+      Object.assign(itemSummary, res.summary)
+    }
+  } catch (e) {
+    console.error('Failed to load item-wise register:', e)
+  }
+}
 
 // Sales Outstanding Register state
 const outstandingSubTab = ref('brokers')
@@ -768,6 +1036,8 @@ const switchType = (type) => {
   router.replace({ query: { type } })
   if (type === 'SalesOutstanding') {
     loadSalesOutstanding()
+  } else if (type === 'ItemWise') {
+    loadItemWiseData()
   } else {
     loadData()
   }
@@ -863,6 +1133,7 @@ const formatNumber = (val) => {
 const menuItems = [
   { isHeader: true, label: '📋 REGISTERS' },
   { key: 'O', label: 'Sales Outstanding Register', action: () => switchType('SalesOutstanding') },
+  { key: 'I', label: 'Item-Wise Register', action: () => switchType('ItemWise') },
   { key: 'P', label: 'Purchase Register', action: () => switchType('Purchase') },
   { key: 'S', label: 'Sales Register', action: () => switchType('Sell') },
 
@@ -886,6 +1157,9 @@ onMounted(() => {
   if (qType === 'SalesOutstanding' || qType === 'Outstanding' || qType === 'outstanding') {
     currentType.value = 'SalesOutstanding'
     loadSalesOutstanding()
+  } else if (qType === 'ItemWise' || qType === 'item-wise' || qType === 'items') {
+    currentType.value = 'ItemWise'
+    loadItemWiseData()
   } else if (qType === 'Sales' || qType === 'Sell') {
     currentType.value = 'Sell'
     loadData()
