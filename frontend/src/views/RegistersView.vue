@@ -68,6 +68,47 @@
         <!-- VIEW 1 & 2: STANDARD PURCHASE / SALES REGISTERS          -->
         <!-- ======================================================== -->
         <template v-if="currentType === 'Purchase' || currentType === 'Sell' || currentType === 'Sales'">
+          <!-- View Mode and Action Bar -->
+          <div class="register-subnav-bar">
+            <div class="view-mode-pills">
+              <button
+                type="button"
+                class="btn btn-sm"
+                :class="registerViewMode === 'detailed' ? 'btn-primary' : 'btn-secondary'"
+                @click="registerViewMode = 'detailed'"
+              >
+                📑 Detailed Item Register (Broker Grouped)
+              </button>
+              <button
+                type="button"
+                class="btn btn-sm"
+                :class="registerViewMode === 'voucher_summary' ? 'btn-primary' : 'btn-secondary'"
+                @click="registerViewMode = 'voucher_summary'"
+              >
+                🧾 Voucher Consolidated Summary
+              </button>
+            </div>
+
+            <div class="register-top-actions">
+              <button
+                type="button"
+                class="btn btn-sm btn-success"
+                style="font-weight: 700; display: inline-flex; align-items: center; gap: 6px;"
+                @click="exportRegisterCSV"
+              >
+                <span>📥 Export CSV</span>
+              </button>
+              <button
+                type="button"
+                class="btn btn-sm btn-secondary"
+                @click="loadData"
+                title="Reload Entries"
+              >
+                🔄 Refresh
+              </button>
+            </div>
+          </div>
+
           <!-- Filter Bar -->
           <div class="register-filter-bar">
             <div class="form-group filter-date">
@@ -91,9 +132,18 @@
               />
             </div>
 
+            <div class="form-group filter-search" style="flex: 2 1 220px; min-width: 200px;">
+              <label>Instant Search</label>
+              <input
+                v-model="searchQuery"
+                type="text"
+                placeholder="Filter by Inv, Ref, Party, Broker, Item..."
+              />
+            </div>
+
             <div class="filter-actions">
               <button type="button" class="btn btn-secondary btn-sm" @click="resetFilters">
-                Reset Filters
+                Reset
               </button>
             </div>
           </div>
@@ -103,42 +153,49 @@
             <div class="register-metric-card">
               <div class="metric-card-label">Total Vouchers</div>
               <div class="metric-card-val navy-val">
-                {{ summary.total_count }}
+                {{ overallTotals.vouchersCount }}
               </div>
             </div>
 
             <div class="register-metric-card">
-              <div class="metric-card-label">Total Quantity (Qtl)</div>
+              <div class="metric-card-label">Total Packages</div>
               <div class="metric-card-val navy-val">
-                {{ formatNumber(summary.total_qty) }} Qtl
+                {{ overallTotals.pkgs ? formatNumber(overallTotals.pkgs) : '0' }} Pkgs
               </div>
             </div>
 
             <div class="register-metric-card">
-              <div class="metric-card-label">Trade Subtotal</div>
+              <div class="metric-card-label">Total Weight (Qtls)</div>
               <div class="metric-card-val navy-val">
-                ₹ {{ formatCurrency(summary.total_trade) }}
+                {{ formatNumber(overallTotals.weight) }} Qtl
+              </div>
+            </div>
+
+            <div class="register-metric-card">
+              <div class="metric-card-label">Taxable Subtotal</div>
+              <div class="metric-card-val navy-val">
+                ₹ {{ formatCurrency(overallTotals.taxable) }}
               </div>
             </div>
 
             <div class="register-metric-card metric-card-gst">
-              <div class="metric-card-label green-text">Total GST</div>
+              <div class="metric-card-label green-text">Total Tax (GST)</div>
               <div class="metric-card-val green-text">
-                ₹ {{ formatCurrency(summary.total_gst || 0) }}
+                ₹ {{ formatCurrency(overallTotals.tax) }}
               </div>
             </div>
 
             <div class="register-metric-card metric-card-grand">
               <div class="metric-card-label blue-text">Grand Total</div>
               <div class="metric-card-val blue-text">
-                ₹ {{ formatCurrency(summary.total_grand || summary.total_trade) }}
+                ₹ {{ formatCurrency(overallTotals.total) }}
               </div>
             </div>
 
             <div class="register-metric-card metric-card-brokerage">
               <div class="metric-card-label brk-text">Total Brokerage</div>
               <div class="metric-card-val brk-text">
-                ₹ {{ formatCurrency(summary.total_brokerage) }}
+                ₹ {{ formatCurrency(overallTotals.brokerage) }}
               </div>
             </div>
           </div>
@@ -146,101 +203,248 @@
           <!-- Mobile Scroll Cue Banner -->
           <div class="mobile-scroll-cue">
             <span class="cue-icon">↔</span>
-            <span>Scroll horizontally to view all register columns</span>
+            <span>Scroll horizontally to view all 14 register columns</span>
           </div>
 
-          <!-- Table of Entries -->
-          <div class="register-table-wrapper">
+          <!-- VIEW MODE 1: 14-COLUMN BROKER-GROUPED DETAILED REGISTER -->
+          <div v-if="registerViewMode === 'detailed'" class="register-table-wrapper">
             <table class="data-table register-data-table">
               <thead>
                 <tr>
-                  <th class="col-id">Entry ID</th>
-                  <th class="col-date">Date</th>
-                  <th class="col-broker">Broker (Sole Party)</th>
-                  <th class="col-commodity">Commodity &amp; Group</th>
-                  <th class="col-num">Trade Subtotal (₹)</th>
-                  <th class="col-gst">GST Rate</th>
-                  <th class="col-grand">Grand Total (₹)</th>
-                  <th class="col-method">Method</th>
-                  <th class="col-rate">Brokerage Rate</th>
-                  <th class="col-brk">Brokerage (₹)</th>
-                  <th class="col-status">Status</th>
+                  <th style="min-width: 90px;">Ref No</th>
+                  <th style="min-width: 140px;">Inv No</th>
+                  <th style="min-width: 100px;">Date</th>
+                  <th style="min-width: 220px;">Party Name</th>
+                  <th style="min-width: 200px;">Item Name</th>
+                  <th style="min-width: 95px; text-align: right;">No of Pkgs</th>
+                  <th style="min-width: 120px; text-align: right;">Weight in Qtls.</th>
+                  <th style="min-width: 110px; text-align: right;">Rate per qtls</th>
+                  <th style="min-width: 125px; text-align: right;">Taxable Amt</th>
+                  <th style="min-width: 105px; text-align: right;">Tax Amt</th>
+                  <th style="min-width: 125px; text-align: right;">Total Amt</th>
+                  <th style="min-width: 110px; text-align: right;">Brokerage Rate</th>
+                  <th style="min-width: 110px; text-align: center;">Per qtl/Bag %</th>
+                  <th style="min-width: 120px; text-align: right;">Brokerage Amt</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-if="records.length === 0">
-                  <td colspan="11" class="empty-cell">
-                    No {{ currentType }} entries found for selected criteria.
+                <tr v-if="groupedBrokerRecords.length === 0">
+                  <td colspan="14" class="empty-cell">
+                    No {{ (currentType === 'Sell' || currentType === 'Sales') ? 'Sales' : 'Purchase' }} entries found for selected criteria.
                   </td>
                 </tr>
-                <tr v-for="r in records" :key="r.name">
-                  <td class="col-id">
-                    <a :href="`/app/${(currentType === 'Sell' || currentType === 'Sales') ? 'broker-sales-entry' : 'broker-purchase-entry'}/${r.name}`" target="_blank" class="entry-link">
-                      {{ r.name }} ↗
-                    </a>
-                  </td>
-                  <td class="col-date">{{ r.posting_date }}</td>
-                  <td class="col-broker">
-                    <div class="broker-name-cell">{{ r.broker_name || r.broker }}</div>
-                    <div v-if="r.broker_name && r.broker && r.broker_name !== r.broker" class="broker-id-sub">{{ r.broker }}</div>
-                  </td>
-                  <td class="col-commodity cell-commodity">
-                    <div class="commodity-cell">
-                      <!-- 1. If child items exist: list every item and its stock group -->
-                      <div v-if="r.items && r.items.length > 0" class="commodity-items-wrap">
-                        <div
-                          v-for="(it, idx) in r.items"
-                          :key="idx"
-                          class="commodity-item-row"
-                        >
-                          <span class="commodity-item-title">{{ it.item_name || it.item }}</span>
-                          <span v-if="it.stock_group" class="badge badge-purple group-pill">
-                            🏷️ {{ cleanItemText(it.stock_group) }}
-                          </span>
+
+                <template v-for="grp in groupedBrokerRecords" :key="grp.broker_key">
+                  <!-- Broker Group Header Row -->
+                  <tr class="broker-group-header-row">
+                    <td colspan="14">
+                      <div class="broker-group-header-content">
+                        <span>🤝 <strong>{{ grp.broker_title }}</strong></span>
+                        <div class="broker-header-badges">
+                          <span class="badge badge-blue">{{ grp.lines.length }} Line {{ grp.lines.length === 1 ? 'Item' : 'Items' }}</span>
+                          <span class="badge badge-purple">{{ grp.vouchers.length }} {{ grp.vouchers.length === 1 ? 'Voucher' : 'Vouchers' }}</span>
                         </div>
                       </div>
+                    </td>
+                  </tr>
 
-                      <!-- 2. Fallback if child items not available: clean parent item name -->
-                      <div v-else class="commodity-fallback-wrap">
-                        <span class="commodity-item-title">{{ cleanItemText(r.item_name || r.item) }}</span>
-                      </div>
-
-                      <!-- 3. Explicit list of all selected stock groups (always visible, no '+1' or hidden groups) -->
-                      <div v-if="getStockGroups(r).length > 0" class="selected-groups-row">
-                        <span class="selected-groups-caption">Groups:</span>
-                        <span
-                          v-for="grp in getStockGroups(r)"
-                          :key="grp"
-                          class="badge badge-purple group-pill"
-                        >
-                          🏷️ {{ grp }}
+                  <!-- Line Item Rows -->
+                  <tr v-for="(l, lIdx) in grp.lines" :key="l.inv_no + '-' + lIdx" class="register-item-row">
+                    <td class="col-ref">
+                      <span v-if="l.ref_no" class="ref-badge">{{ l.ref_no }}</span>
+                      <span v-else class="text-muted">—</span>
+                    </td>
+                    <td class="col-id">
+                      <a
+                        :href="`/app/${(currentType === 'Sell' || currentType === 'Sales') ? 'broker-sales-entry' : 'broker-purchase-entry'}/${l.inv_no}`"
+                        target="_blank"
+                        class="entry-link"
+                      >
+                        {{ l.inv_no }} ↗
+                      </a>
+                    </td>
+                    <td class="col-date">{{ l.posting_date }}</td>
+                    <td class="col-party">
+                      <div class="party-name-cell">{{ l.party_name }}</div>
+                    </td>
+                    <td class="col-item">
+                      <div class="item-name-cell">
+                        <span class="item-name-title">{{ cleanItemText(l.item_name) }}</span>
+                        <span v-if="l.stock_group" class="badge badge-purple group-pill">
+                          🏷️ {{ cleanItemText(l.stock_group) }}
                         </span>
                       </div>
-                    </div>
+                    </td>
+                    <td class="text-right">
+                      {{ l.bags ? formatNumber(l.bags) : '—' }}
+                    </td>
+                    <td class="text-right font-semibold">
+                      {{ formatNumber(l.quantity) }}
+                    </td>
+                    <td class="text-right">
+                      ₹{{ formatCurrency(l.rate) }}
+                    </td>
+                    <td class="text-right font-semibold navy-val">
+                      ₹{{ formatCurrency(l.taxable_amt) }}
+                    </td>
+                    <td class="text-right green-text">
+                      {{ l.tax_amt ? `₹${formatCurrency(l.tax_amt)}` : '—' }}
+                    </td>
+                    <td class="text-right font-bold blue-text">
+                      ₹{{ formatCurrency(l.total_amt) }}
+                    </td>
+                    <td class="text-right font-mono">
+                      {{ l.brokerage_rate }}
+                    </td>
+                    <td class="text-center">
+                      <span
+                        class="badge"
+                        :class="l.brokerage_method === 'Percentage' ? 'badge-blue' : (l.brokerage_method === 'Per Bag' ? 'badge-amber' : 'badge-green')"
+                        style="font-size: 11px;"
+                      >
+                        {{ formatBrokerageMethod(l.brokerage_method) }}
+                      </span>
+                    </td>
+                    <td class="text-right font-extrabold brk-text">
+                      ₹{{ formatCurrency(l.brokerage_amt) }}
+                    </td>
+                  </tr>
+
+                  <!-- Totals Row for This Broker Group -->
+                  <tr class="broker-group-totals-row">
+                    <td colspan="4" class="totals-title-cell">
+                      Totals
+                    </td>
+                    <td class="totals-cell font-bold">Totals</td>
+                    <td class="text-right totals-val font-bold">
+                      {{ grp.totals.pkgs ? formatNumber(grp.totals.pkgs) : '—' }}
+                    </td>
+                    <td class="text-right totals-val font-bold">
+                      {{ formatNumber(grp.totals.weight) }}
+                    </td>
+                    <td></td>
+                    <td class="text-right totals-val font-bold navy-val">
+                      ₹{{ formatCurrency(grp.totals.taxable) }}
+                    </td>
+                    <td class="text-right totals-val font-bold green-text">
+                      {{ grp.totals.tax ? `₹${formatCurrency(grp.totals.tax)}` : '—' }}
+                    </td>
+                    <td class="text-right totals-val font-extrabold blue-text">
+                      ₹{{ formatCurrency(grp.totals.total) }}
+                    </td>
+                    <td></td>
+                    <td></td>
+                    <td class="text-right totals-val font-extrabold brk-text">
+                      ₹{{ formatCurrency(grp.totals.brokerage) }}
+                    </td>
+                  </tr>
+                </template>
+
+                <!-- Overall Register Grand Totals Row -->
+                <tr v-if="groupedBrokerRecords.length > 0" class="register-overall-totals-row">
+                  <td colspan="5" class="overall-totals-title">
+                    Overall Register Grand Totals:
                   </td>
-                  <td class="col-num subtotal-cell">
-                    ₹{{ formatCurrency(r.trade_amount) }}
+                  <td class="text-right overall-totals-val">
+                    {{ overallTotals.pkgs ? formatNumber(overallTotals.pkgs) : '—' }}
                   </td>
-                  <td class="col-gst gst-cell">
-                    {{ r.gst_rate !== undefined ? r.gst_rate : 5 }}% (₹{{ formatCurrency(r.total_gst_amount || 0) }})
+                  <td class="text-right overall-totals-val">
+                    {{ formatNumber(overallTotals.weight) }}
                   </td>
-                  <td class="col-grand grand-cell">
-                    ₹{{ formatCurrency(r.grand_total || r.trade_amount) }}
+                  <td></td>
+                  <td class="text-right overall-totals-val">
+                    ₹{{ formatCurrency(overallTotals.taxable) }}
                   </td>
-                  <td class="col-method">
-                    <span v-if="r.items_count > 1" class="badge badge-purple">Multi-Item</span>
-                    <span v-else class="badge" :class="(currentType === 'Sell' || currentType === 'Sales') ? 'badge-green' : 'badge-blue'">{{ r.brokerage_method }}</span>
+                  <td class="text-right overall-totals-val" style="color: #86efac;">
+                    ₹{{ formatCurrency(overallTotals.tax) }}
                   </td>
-                  <td class="col-rate">
-                    <span v-if="r.items_count > 1" class="muted-note">Multi-Terms</span>
-                    <span v-else>{{ r.brokerage_method === 'Percentage' ? `${r.brokerage_rate}%` : (r.brokerage_method === 'Per Bag' ? `₹${r.brokerage_rate}/bag` : `₹${r.brokerage_rate}/qtl`) }}</span>
+                  <td class="text-right overall-totals-val" style="color: #93c5fd;">
+                    ₹{{ formatCurrency(overallTotals.total) }}
                   </td>
-                  <td class="col-brk brokerage-cell">
-                    ₹{{ formatCurrency(r.brokerage_amount) }}
+                  <td></td>
+                  <td></td>
+                  <td class="text-right overall-totals-val" style="color: #4ade80;">
+                    ₹{{ formatCurrency(overallTotals.brokerage) }}
                   </td>
-                  <td class="col-status">
-                    <span class="badge badge-green">{{ r.status }}</span>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- VIEW MODE 2: CONSOLIDATED VOUCHER SUMMARY TABLE -->
+          <div v-else-if="registerViewMode === 'voucher_summary'" class="register-table-wrapper">
+            <table class="data-table register-data-table">
+              <thead>
+                <tr>
+                  <th style="min-width: 100px;">Voucher Date</th>
+                  <th style="min-width: 140px;">Voucher No.</th>
+                  <th style="min-width: 220px;">Party Name</th>
+                  <th style="min-width: 180px;">Broker</th>
+                  <th style="min-width: 130px; text-align: right;">Taxable Amount</th>
+                  <th style="min-width: 110px; text-align: right;">GST Amount</th>
+                  <th style="min-width: 130px; text-align: right;">Total Amount</th>
+                  <th style="min-width: 120px; text-align: right;">Brokerage</th>
+                  <th style="min-width: 90px; text-align: center;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="voucherSummaryList.length === 0">
+                  <td colspan="9" class="empty-cell">
+                    No vouchers found for selected criteria.
                   </td>
+                </tr>
+                <tr v-for="v in voucherSummaryList" :key="v.voucher_no">
+                  <td>{{ v.date }}</td>
+                  <td class="col-id">
+                    <a
+                      :href="`/app/${(currentType === 'Sell' || currentType === 'Sales') ? 'broker-sales-entry' : 'broker-purchase-entry'}/${v.voucher_no}`"
+                      target="_blank"
+                      class="entry-link"
+                    >
+                      {{ v.voucher_no }} ↗
+                    </a>
+                  </td>
+                  <td>
+                    <div class="party-name-cell">{{ v.party_name }}</div>
+                  </td>
+                  <td>
+                    <div style="font-weight: 600; color: var(--navy);">{{ v.broker_name }}</div>
+                  </td>
+                  <td class="text-right font-semibold navy-val">
+                    ₹{{ formatCurrency(v.taxable_amount) }}
+                  </td>
+                  <td class="text-right green-text">
+                    {{ v.gst_amount ? `₹${formatCurrency(v.gst_amount)}` : '—' }}
+                  </td>
+                  <td class="text-right font-bold blue-text">
+                    ₹{{ formatCurrency(v.total_amount) }}
+                  </td>
+                  <td class="text-right font-extrabold brk-text">
+                    ₹{{ formatCurrency(v.brokerage_amount) }}
+                  </td>
+                  <td style="text-align: center;">
+                    <span class="badge badge-green">{{ v.status }}</span>
+                  </td>
+                </tr>
+
+                <!-- Summary Table Footer -->
+                <tr v-if="voucherSummaryList.length > 0" class="register-overall-totals-row">
+                  <td colspan="4" class="overall-totals-title">
+                    Total ({{ voucherSummaryList.length }} Vouchers):
+                  </td>
+                  <td class="text-right overall-totals-val">
+                    ₹{{ formatCurrency(overallTotals.taxable) }}
+                  </td>
+                  <td class="text-right overall-totals-val" style="color: #86efac;">
+                    ₹{{ formatCurrency(overallTotals.tax) }}
+                  </td>
+                  <td class="text-right overall-totals-val" style="color: #93c5fd;">
+                    ₹{{ formatCurrency(overallTotals.total) }}
+                  </td>
+                  <td class="text-right overall-totals-val" style="color: #4ade80;">
+                    ₹{{ formatCurrency(overallTotals.brokerage) }}
+                  </td>
+                  <td></td>
                 </tr>
               </tbody>
             </table>
@@ -947,7 +1151,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useFrappeApi } from '../composables/useFrappeApi'
 import { showToast } from '../composables/useKeyboardEngine'
@@ -1016,6 +1220,9 @@ const summary = reactive({
   total_trade: 0,
   total_brokerage: 0,
   total_qty: 0,
+  total_bags: 0,
+  total_gst: 0,
+  total_grand: 0,
 })
 
 const filters = reactive({
@@ -1024,6 +1231,313 @@ const filters = reactive({
   broker: '',
   broker_name: '',
 })
+
+// Sub-mode for Purchase & Sales Registers: 'detailed' (14-column broker-grouped) | 'voucher_summary'
+const registerViewMode = ref('detailed')
+const searchQuery = ref('')
+
+const formatBrokerageMethod = (method) => {
+  if (!method) return ''
+  const m = String(method).toLowerCase()
+  if (m.includes('percent')) return '% on Bill'
+  if (m.includes('quintal') || m.includes('qtl')) return 'Per Qntl'
+  if (m.includes('bag')) return 'Per Bag'
+  return method
+}
+
+// Compute broker-grouped records and item lines matching reference register architecture
+const groupedBrokerRecords = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase()
+
+  const filtered = records.value.filter((r) => {
+    if (!query) return true
+    const invNo = String(r.name || '').toLowerCase()
+    const refNo = String(r.ref_no || '').toLowerCase()
+    const partyName = String(r.party_name || '').toLowerCase()
+    const brokerName = String(r.broker_name || r.broker || '').toLowerCase()
+    const itemMatch = (r.items || []).some(
+      (it) =>
+        String(it.item_name || it.item || '').toLowerCase().includes(query) ||
+        String(it.stock_group || '').toLowerCase().includes(query)
+    )
+    return (
+      invNo.includes(query) ||
+      refNo.includes(query) ||
+      partyName.includes(query) ||
+      brokerName.includes(query) ||
+      itemMatch
+    )
+  })
+
+  const groupsMap = new Map()
+
+  filtered.forEach((r) => {
+    const brokerKey = r.broker || '__direct__'
+    const brokerTitle = r.broker_name
+      ? `${r.broker_name}${r.broker && r.broker !== r.broker_name ? ' (' + r.broker + ')' : ''}`
+      : (r.broker || 'Direct / No Broker')
+
+    if (!groupsMap.has(brokerKey)) {
+      groupsMap.set(brokerKey, {
+        broker_key: brokerKey,
+        broker_title: brokerTitle,
+        broker_name: r.broker_name || r.broker || 'Direct Party',
+        vouchers: [],
+        lines: [],
+        totals: {
+          pkgs: 0,
+          weight: 0,
+          taxable: 0,
+          tax: 0,
+          total: 0,
+          brokerage: 0,
+        },
+      })
+    }
+
+    const grp = groupsMap.get(brokerKey)
+    grp.vouchers.push(r)
+
+    const childItems =
+      r.items && Array.isArray(r.items) && r.items.length > 0
+        ? r.items
+        : [
+            {
+              item: r.item,
+              item_name: r.item_name || r.item,
+              stock_group: r.stock_group,
+              bags: r.bags || 0,
+              quantity: r.quantity || 0,
+              rate: r.rate || 0,
+              trade_amount: r.trade_amount || 0,
+              total_gst_amount: r.total_gst_amount || 0,
+              grand_total: r.grand_total || r.trade_amount || 0,
+              brokerage_rate: r.brokerage_rate || 0,
+              brokerage_method: r.brokerage_method || 'Percentage',
+              brokerage_amount: r.brokerage_amount || 0,
+            },
+          ]
+
+    childItems.forEach((it) => {
+      const bags = Number(it.bags) || 0
+      const qty = Number(it.quantity) || 0
+      const rate = Number(it.rate) || 0
+      const taxable = Number(it.trade_amount) || 0
+      const tax = Number(it.total_gst_amount) || 0
+      const total = Number(it.grand_total) || (taxable + tax) || 0
+      const brkRate = Number(it.brokerage_rate) || 0
+      const brkMethod = it.brokerage_method || 'Percentage'
+      const brkAmt = Number(it.brokerage_amount) || 0
+
+      const line = {
+        ref_no: r.ref_no || '',
+        inv_no: r.name,
+        posting_date: r.posting_date,
+        party_name: r.party_name || r.broker_name || r.broker || 'Direct Party',
+        item_name: it.item_name || it.item,
+        item_code: it.item,
+        stock_group: it.stock_group,
+        hsn_code: it.hsn_code,
+        bags,
+        quantity: qty,
+        rate,
+        taxable_amt: taxable,
+        tax_amt: tax,
+        total_amt: total,
+        brokerage_rate: brkRate,
+        brokerage_method: brkMethod,
+        brokerage_amt: brkAmt,
+        status: r.status || 'Submitted',
+      }
+
+      grp.lines.push(line)
+      grp.totals.pkgs += bags
+      grp.totals.weight += qty
+      grp.totals.taxable += taxable
+      grp.totals.tax += tax
+      grp.totals.total += total
+      grp.totals.brokerage += brkAmt
+    })
+  })
+
+  return Array.from(groupsMap.values())
+})
+
+// Overall Totals computed across all displayed groups
+const overallTotals = computed(() => {
+  let pkgs = 0
+  let weight = 0
+  let taxable = 0
+  let tax = 0
+  let total = 0
+  let brokerage = 0
+  let vouchersCount = 0
+
+  groupedBrokerRecords.value.forEach((grp) => {
+    pkgs += grp.totals.pkgs
+    weight += grp.totals.weight
+    taxable += grp.totals.taxable
+    tax += grp.totals.tax
+    total += grp.totals.total
+    brokerage += grp.totals.brokerage
+    vouchersCount += grp.vouchers.length
+  })
+
+  return {
+    pkgs: Math.round(pkgs * 100) / 100,
+    weight: Math.round(weight * 100) / 100,
+    taxable: Math.round(taxable * 100) / 100,
+    tax: Math.round(tax * 100) / 100,
+    total: Math.round(total * 100) / 100,
+    brokerage: Math.round(brokerage * 100) / 100,
+    vouchersCount,
+  }
+})
+
+// Consolidated voucher summary list
+const voucherSummaryList = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase()
+  return records.value
+    .filter((r) => {
+      if (!query) return true
+      const invNo = String(r.name || '').toLowerCase()
+      const refNo = String(r.ref_no || '').toLowerCase()
+      const partyName = String(r.party_name || '').toLowerCase()
+      const brokerName = String(r.broker_name || r.broker || '').toLowerCase()
+      return (
+        invNo.includes(query) ||
+        refNo.includes(query) ||
+        partyName.includes(query) ||
+        brokerName.includes(query)
+      )
+    })
+    .map((r) => {
+      return {
+        date: r.posting_date,
+        voucher_no: r.name,
+        party_name: r.party_name || r.broker_name || r.broker || 'Direct Party',
+        broker_name: r.broker_name || r.broker || '—',
+        taxable_amount: Number(r.trade_amount) || 0,
+        gst_amount: Number(r.total_gst_amount) || 0,
+        total_amount: Number(r.grand_total) || (Number(r.trade_amount) + Number(r.total_gst_amount)) || 0,
+        brokerage_amount: Number(r.brokerage_amount) || 0,
+        status: r.status || 'Submitted',
+      }
+    })
+})
+
+// Export CSV matching exact reference structure
+const exportRegisterCSV = () => {
+  const rows = []
+
+  // Top header row matching exact reference format
+  rows.push([
+    'Ref No',
+    'Inv No',
+    'Date',
+    'Party Name',
+    'Item Name',
+    'No of Pkgs',
+    'Weight in Qtls.',
+    'Rate per qtls',
+    'Taxable Amt',
+    'Tax Amt',
+    'Total Amt',
+    'Brokerage Rate',
+    'Per qtl/Bag %',
+    'Brokerage Amt',
+  ])
+
+  // Empty separator
+  rows.push(['', '', '', '', '', '', '', '', '', '', '', '', '', ''])
+
+  // Broker groups and line items
+  groupedBrokerRecords.value.forEach((grp) => {
+    // Broker header row
+    if (grp.broker_key !== '__direct__' || grp.broker_title) {
+      rows.push(['', '', '', `${grp.broker_name} -Broker`, '', '', '', '', '', '', '', '', '', ''])
+    }
+
+    // Line items
+    grp.lines.forEach((l) => {
+      rows.push([
+        l.ref_no || '',
+        l.inv_no,
+        l.posting_date,
+        l.party_name,
+        cleanItemText(l.item_name),
+        l.bags ? l.bags : '',
+        l.quantity,
+        l.rate,
+        l.taxable_amt,
+        l.tax_amt ? l.tax_amt : '',
+        l.total_amt,
+        l.brokerage_rate,
+        formatBrokerageMethod(l.brokerage_method),
+        l.brokerage_amt ? l.brokerage_amt : '',
+      ])
+    })
+
+    // Totals row for this broker
+    rows.push([
+      '',
+      '',
+      '',
+      'Totals',
+      '',
+      grp.totals.pkgs ? grp.totals.pkgs : '',
+      grp.totals.weight,
+      '',
+      grp.totals.taxable,
+      grp.totals.tax ? grp.totals.tax : '',
+      grp.totals.total,
+      '',
+      '',
+      grp.totals.brokerage ? grp.totals.brokerage : '',
+    ])
+  })
+
+  // Secondary Voucher Summary Section matching reference file
+  rows.push([])
+  rows.push(['Voucher Date', 'Voucher No.', 'PartyName', 'Taxable Amount', 'GST Amount', 'Total Amount', 'Brokerage Amount'])
+  voucherSummaryList.value.forEach((v) => {
+    rows.push([
+      v.date,
+      v.voucher_no,
+      v.party_name,
+      v.taxable_amount,
+      v.gst_amount ? v.gst_amount : '',
+      v.total_amount,
+      v.brokerage_amount ? v.brokerage_amount : '',
+    ])
+  })
+
+  const csvContent = rows
+    .map((r) =>
+      r
+        .map((cell) => {
+          const str = cell === null || cell === undefined ? '' : String(cell)
+          if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`
+          }
+          return str
+        })
+        .join(',')
+    )
+    .join('\r\n')
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.setAttribute('href', url)
+  const filename = `${currentType.value}_Register_${new Date().toISOString().split('T')[0]}.csv`
+  link.setAttribute('download', filename)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+  showToast(`📥 Exported ${filename}`)
+}
 
 // Item-Wise Register state
 const itemRecords = ref([])
@@ -1193,6 +1707,7 @@ const resetFilters = () => {
   filters.to_date = ''
   filters.broker = ''
   filters.broker_name = ''
+  searchQuery.value = ''
   loadData()
 }
 
@@ -1220,6 +1735,7 @@ const loadData = async () => {
     summary.total_trade = res.total_trade || 0
     summary.total_brokerage = res.total_brokerage || 0
     summary.total_qty = res.total_qty || 0
+    summary.total_bags = res.total_bags || 0
     summary.total_gst = res.total_gst || 0
     summary.total_grand = res.total_grand || 0
   } catch (e) {
@@ -1646,6 +2162,138 @@ onMounted(() => {
   display: flex;
   align-items: flex-end;
 }
+
+/* Register Sub-Nav & Mode Switcher */
+.register-subnav-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1.5px solid var(--line);
+}
+
+.view-mode-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.register-top-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Broker Grouping Header & Rows */
+.broker-group-header-row td {
+  background: #f8fafc;
+  border-top: 2px solid var(--navy) !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+  padding: 9px 14px !important;
+}
+
+.broker-group-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--navy);
+}
+
+.broker-header-badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.ref-badge {
+  background: #f1f5f9;
+  color: #334155;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  display: inline-block;
+}
+
+.party-name-cell {
+  font-weight: 700;
+  color: var(--navy);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.item-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.item-name-title {
+  font-weight: 600;
+  color: var(--navy);
+}
+
+/* Subtotal Totals Row per Broker Group */
+.broker-group-totals-row td {
+  background: #f1f5f9;
+  border-top: 1.5px solid #cbd5e1 !important;
+  border-bottom: 2px solid #94a3b8 !important;
+  padding: 8px 12px !important;
+}
+
+.totals-title-cell {
+  text-align: right;
+  font-weight: 700;
+  color: var(--navy);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.totals-cell {
+  color: var(--navy);
+}
+
+.totals-val {
+  font-size: 12.5px;
+}
+
+/* Overall Register Grand Totals */
+.register-overall-totals-row td {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border-top: 2px solid #000000 !important;
+  padding: 11px 12px !important;
+  font-weight: 800;
+}
+
+.overall-totals-title {
+  text-align: right;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #e2e8f0;
+}
+
+.overall-totals-val {
+  font-size: 13.5px;
+  font-family: var(--font-mono);
+}
+
+/* Utility Helpers */
+.text-right { text-align: right !important; }
+.text-center { text-align: center !important; }
+.text-muted { color: var(--muted); }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+.font-extrabold { font-weight: 800; }
+.font-mono { font-family: var(--font-mono); }
 
 /* Media Queries for Mobile & Tablet Responsiveness */
 @media (max-width: 1024px) {

@@ -1004,6 +1004,16 @@ def save_purchase_entry(data=None):
     doc.broker_name = b_name or doc.broker
     doc.remarks = payload.get("remarks")
 
+    s_name = payload.get("supplier_name") or payload.get("party_name") or payload.get("supplier")
+    if s_name:
+        if frappe.db.has_column("Broker Purchase Entry", "supplier_name"):
+            doc.supplier_name = s_name
+        if frappe.db.has_column("Broker Purchase Entry", "supplier"):
+            doc.supplier = payload.get("supplier") or s_name
+    if payload.get("ref_no"):
+        ref = payload.get("ref_no")
+        doc.remarks = f"Ref: {ref} | {doc.remarks}" if doc.remarks else f"Ref: {ref}"
+
     items_list = payload.get("items")
     if items_list and isinstance(items_list, list) and len(items_list) > 0:
         first = items_list[0]
@@ -1095,6 +1105,16 @@ def save_sales_entry(data=None):
     doc.broker_name = b_name or doc.broker
     doc.remarks = payload.get("remarks")
 
+    c_name = payload.get("customer_name") or payload.get("party_name") or payload.get("customer")
+    if c_name:
+        if frappe.db.has_column("Broker Sales Entry", "customer_name"):
+            doc.customer_name = c_name
+        if frappe.db.has_column("Broker Sales Entry", "customer"):
+            doc.customer = payload.get("customer") or c_name
+    if payload.get("ref_no"):
+        ref = payload.get("ref_no")
+        doc.remarks = f"Ref: {ref} | {doc.remarks}" if doc.remarks else f"Ref: {ref}"
+
     items_list = payload.get("items")
     if items_list and isinstance(items_list, list) and len(items_list) > 0:
         first = items_list[0]
@@ -1180,47 +1200,99 @@ def get_entries(entry_type="Purchase", from_date=None, to_date=None, broker=None
     if broker:
         filters["broker"] = broker
 
+    fields = [
+        "name", "posting_date", "broker", "broker_name", "remarks",
+        "item", "item_name", "stock_group", "quantity", "bags", "rate", "trade_amount",
+        "gst_rate", "cgst_rate", "cgst_amount", "sgst_rate", "sgst_amount", "total_gst_amount", "grand_total",
+        "brokerage_method", "brokerage_rate", "brokerage_amount", "status", "rate_source"
+    ]
+    if entry_type == "Purchase":
+        if frappe.db.has_column(doctype, "supplier"):
+            fields.append("supplier")
+        if frappe.db.has_column(doctype, "supplier_name"):
+            fields.append("supplier_name")
+    else:
+        if frappe.db.has_column(doctype, "customer"):
+            fields.append("customer")
+        if frappe.db.has_column(doctype, "customer_name"):
+            fields.append("customer_name")
+
     records = frappe.get_all(
         doctype,
         filters=filters,
-        fields=[
-            "name", "posting_date", "broker", "broker_name",
-            "item", "item_name", "stock_group", "quantity", "bags", "rate", "trade_amount",
-            "gst_rate", "cgst_rate", "cgst_amount", "sgst_rate", "sgst_amount", "total_gst_amount", "grand_total",
-            "brokerage_method", "brokerage_rate", "brokerage_amount", "status", "rate_source"
-        ],
+        fields=fields,
         order_by="posting_date desc, creation desc",
-        limit=int(limit or 100),
+        limit=int(limit or 200),
     )
 
     # Attach child items if present
     has_voucher_item_dt = frappe.db.exists("DocType", "Broker Voucher Item")
+    has_item_hsn_col = has_voucher_item_dt and frappe.db.has_column("Broker Voucher Item", "hsn_code")
+
     for r in records:
+        if entry_type == "Purchase":
+            r["party_name"] = r.get("supplier_name") or r.get("supplier") or r.get("broker_name") or r.get("broker") or "Direct Party"
+        else:
+            r["party_name"] = r.get("customer_name") or r.get("customer") or r.get("broker_name") or r.get("broker") or "Direct Party"
+
+        rem = str(r.get("remarks") or "").strip()
+        if rem.lower().startswith("ref:"):
+            parts = rem.split("|", 1)
+            r["ref_no"] = parts[0].replace("Ref:", "").replace("ref:", "").strip()
+            r["clean_remarks"] = parts[1].strip() if len(parts) > 1 else ""
+        else:
+            r["ref_no"] = ""
+            r["clean_remarks"] = rem
+
+        child_rows = []
         if has_voucher_item_dt:
+            v_fields = [
+                "item", "item_name", "stock_group", "quantity", "bags", "rate",
+                "trade_amount", "gst_rate", "cgst_amount", "sgst_amount", "total_gst_amount",
+                "grand_total", "brokerage_method", "brokerage_rate", "brokerage_amount", "rate_source"
+            ]
+            if has_item_hsn_col:
+                v_fields.append("hsn_code")
             child_rows = frappe.get_all(
                 "Broker Voucher Item",
                 filters={"parent": r.name, "parenttype": doctype},
-                fields=[
-                    "item", "item_name", "stock_group", "quantity", "bags", "rate",
-                    "trade_amount", "gst_rate", "cgst_amount", "sgst_amount", "total_gst_amount",
-                    "grand_total", "brokerage_method", "brokerage_rate", "brokerage_amount", "rate_source"
-                ],
+                fields=v_fields,
                 order_by="idx asc"
             )
-            r["items"] = child_rows
-            r["items_count"] = len(child_rows)
-            if child_rows:
-                r["stock_groups_list"] = list(dict.fromkeys(c.get("stock_group") for c in child_rows if c.get("stock_group")))
-            else:
-                r["stock_groups_list"] = [r.get("stock_group")] if r.get("stock_group") else []
+
+        if not child_rows and r.item:
+            child_rows = [{
+                "item": r.get("item"),
+                "item_name": r.get("item_name") or r.get("item"),
+                "stock_group": r.get("stock_group") or "Sugar",
+                "hsn_code": get_item_hsn(r.get("item")),
+                "quantity": flt(r.get("quantity")),
+                "bags": flt(r.get("bags")),
+                "rate": flt(r.get("rate")),
+                "trade_amount": flt(r.get("trade_amount")),
+                "gst_rate": flt(r.get("gst_rate") if r.get("gst_rate") is not None else 5.0),
+                "cgst_amount": flt(r.get("cgst_amount") or 0),
+                "sgst_amount": flt(r.get("sgst_amount") or 0),
+                "total_gst_amount": flt(r.get("total_gst_amount") or 0),
+                "grand_total": flt(r.get("grand_total") or r.get("trade_amount") or 0),
+                "brokerage_method": r.get("brokerage_method") or "Percentage",
+                "brokerage_rate": flt(r.get("brokerage_rate")),
+                "brokerage_amount": flt(r.get("brokerage_amount")),
+                "rate_source": r.get("rate_source") or "Direct Entry",
+                "remarks": r.get("clean_remarks") or ""
+            }]
+
+        r["items"] = child_rows
+        r["items_count"] = len(child_rows)
+        if child_rows:
+            r["stock_groups_list"] = list(dict.fromkeys(c.get("stock_group") for c in child_rows if c.get("stock_group")))
         else:
-            r["items"] = []
-            r["items_count"] = 0
             r["stock_groups_list"] = [r.get("stock_group")] if r.get("stock_group") else []
 
     total_trade = sum(flt(r.trade_amount) for r in records)
     total_brokerage = sum(flt(r.brokerage_amount) for r in records)
     total_qty = sum(flt(r.quantity) for r in records)
+    total_bags = sum(flt(r.get("bags") or 0) for r in records)
     total_gst = sum(flt(r.get("total_gst_amount") or 0) for r in records)
     total_grand = sum(flt(r.get("grand_total") or r.get("trade_amount") or 0) for r in records)
 
@@ -1230,6 +1302,7 @@ def get_entries(entry_type="Purchase", from_date=None, to_date=None, broker=None
         "total_trade": round(total_trade, 2),
         "total_brokerage": round(total_brokerage, 2),
         "total_qty": round(total_qty, 2),
+        "total_bags": round(total_bags, 2),
         "total_gst": round(total_gst, 2),
         "total_grand": round(total_grand, 2),
     }

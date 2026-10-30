@@ -75,6 +75,25 @@
                 @enter="focusFirstItem"
               />
             </div>
+
+            <!-- Optional Party Name & Invoice/Ref No for Sales Register -->
+            <div class="form-group">
+              <label>Customer / Party Name (Optional)</label>
+              <input
+                v-model="form.party_name"
+                type="text"
+                placeholder="e.g. Aaliyas Cashew Export, SHRI SAI SHANAY"
+              />
+            </div>
+
+            <div class="form-group">
+              <label>Invoice / Ref No (Optional)</label>
+              <input
+                v-model="form.ref_no"
+                type="text"
+                placeholder="e.g. 11, 12, INV/2026/001"
+              />
+            </div>
           </div>
 
           <!-- Section: Multi-Item Commodity Grid -->
@@ -358,6 +377,8 @@ const form = reactive({
   posting_date: bootState.today || new Date().toISOString().split('T')[0],
   broker: '',
   broker_name: '',
+  party_name: '',
+  ref_no: '',
   remarks: '',
 })
 
@@ -616,6 +637,8 @@ const formatNumber = (val) => {
 const resetForm = () => {
   form.broker = ''
   form.broker_name = ''
+  form.party_name = ''
+  form.ref_no = ''
   form.remarks = ''
   items.value = [createRow(100, 3850)]
 }
@@ -656,6 +679,9 @@ const submitEntry = async () => {
       company: bootState.defaultCompany,
       broker: form.broker,
       broker_name: form.broker_name,
+      party_name: form.party_name || form.broker_name || '',
+      customer_name: form.party_name || '',
+      ref_no: form.ref_no || '',
       items: items.value.map((it) => ({
         item: it.item,
         item_name: it.item_name,
@@ -673,7 +699,7 @@ const submitEntry = async () => {
         rate_source: it.rate_source || 'Sales Entry',
         remarks: it.remarks || '',
       })),
-      remarks: form.remarks,
+      remarks: form.ref_no ? `Ref: ${form.ref_no}${form.remarks ? ' | ' + form.remarks : ''}` : form.remarks,
       submit: true,
     }
 
