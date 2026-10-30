@@ -407,6 +407,7 @@ const createRow = (defaultQty = 100, defaultRate = 3800) => {
     id: `row-${Date.now()}-${rowSeq}`,
     item: '',
     item_name: '',
+    hsn_code: '',
     stock_group: 'Sugar',
     quantity: defaultQty,
     bags: Math.round(defaultQty * 2),
@@ -545,6 +546,7 @@ const onRowItemSelected = async (row, itm) => {
   if (itm) {
     row.item = itm.value || itm.id || itm.name
     row.item_name = itm.label || itm.item_name || itm.name
+    row.hsn_code = itm.hsn_code || ''
     if (itm.stock_group) row.stock_group = itm.stock_group
     if (itm.gst_rate !== undefined && itm.gst_rate !== null) row.gst_rate = Number(itm.gst_rate)
     await fetchRowBrokerRate(row)
@@ -552,6 +554,7 @@ const onRowItemSelected = async (row, itm) => {
   } else {
     row.item = ''
     row.item_name = ''
+    row.hsn_code = ''
     row.ruleNotice = ''
   }
 }
@@ -656,6 +659,7 @@ const submitEntry = async () => {
       items: items.value.map((it) => ({
         item: it.item,
         item_name: it.item_name,
+        hsn_code: it.hsn_code || '',
         stock_group: it.stock_group,
         quantity: Number(it.quantity) || 0,
         bags: Number(it.bags) || 0,

@@ -34,6 +34,14 @@ def ensure_stock_group_setup():
                 "insert_after": "stock_group",
                 "in_list_view": 1,
             },
+            {
+                "fieldname": "hsn_code",
+                "label": "HSN Code",
+                "fieldtype": "Data",
+                "insert_after": "gst_rate",
+                "in_list_view": 1,
+                "in_standard_filter": 1,
+            },
         ]
     }
     if frappe.db.exists("DocType", "Item"):
@@ -76,16 +84,29 @@ def ensure_stock_group_setup():
         })
         sg3.insert(ignore_permissions=True)
 
-    # Backfill items where stock_group is NULL or empty
+    # Backfill items where stock_group, gst_rate, or hsn_code is NULL or empty
     items_updated = 0
     if frappe.db.exists("DocType", "Item"):
-        items = frappe.get_all("Item", fields=["name", "stock_group", "gst_rate"])
+        has_hsn_col = frappe.db.has_column("Item", "hsn_code")
+        items = frappe.get_all("Item", fields=["name", "item_name", "stock_group", "gst_rate"])
         for it in items:
             to_update = {}
             if not it.get("stock_group"):
                 to_update["stock_group"] = "Sugar"
             if it.get("gst_rate") is None or flt(it.get("gst_rate")) == 0:
                 to_update["gst_rate"] = 5.0
+            if has_hsn_col:
+                curr_hsn = frappe.db.get_value("Item", it["name"], "hsn_code")
+                if not curr_hsn:
+                    name_l = (it.get("item_name") or it.get("name") or "").lower()
+                    if "almond" in name_l or "badam" in name_l:
+                        to_update["hsn_code"] = "0802"
+                    elif "oil" in name_l:
+                        to_update["hsn_code"] = "1507"
+                    elif "jaggery" in name_l or "gur" in name_l:
+                        to_update["hsn_code"] = "1701"
+                    else:
+                        to_update["hsn_code"] = "1701"
             if to_update:
                 frappe.db.set_value("Item", it["name"], to_update, update_modified=False)
                 items_updated += 1
@@ -153,7 +174,7 @@ def save_stock_group(data=None):
 @frappe.whitelist(methods=["GET", "POST"], allow_guest=True)
 def get_items(query=None, stock_group=None, limit=100):
     """
-    Returns items with stock_group, gst_rate, and stock_uom.
+    Returns items with stock_group, gst_rate, hsn_code, and stock_uom.
     """
     query = (query if query is not None else (frappe.form_dict.get("query") or "")).strip()
     stock_group = stock_group or frappe.form_dict.get("stock_group")
@@ -163,6 +184,8 @@ def get_items(query=None, stock_group=None, limit=100):
     if stock_group:
         filters["stock_group"] = stock_group
 
+    has_hsn = frappe.db.has_column("Item", "hsn_code")
+
     or_filters = []
     if query:
         or_filters = [
@@ -170,8 +193,13 @@ def get_items(query=None, stock_group=None, limit=100):
             ["item_code", "like", f"%{query}%"],
             ["name", "like", f"%{query}%"],
         ]
+        if has_hsn:
+            or_filters.append(["hsn_code", "like", f"%{query}%"])
 
     fields = ["name", "item_code", "item_name", "item_group", "stock_uom", "stock_group", "gst_rate", "standard_rate", "description"]
+    if has_hsn:
+        fields.append("hsn_code")
+
     records = frappe.get_all(
         "Item",
         filters=filters,
@@ -185,13 +213,19 @@ def get_items(query=None, stock_group=None, limit=100):
             r["stock_group"] = "Sugar"
         if r.get("gst_rate") is None:
             r["gst_rate"] = 5.0
+        if not r.get("hsn_code"):
+            if frappe.db.has_column("Item", "gst_hsn_code"):
+                r["hsn_code"] = frappe.db.get_value("Item", r["name"], "gst_hsn_code") or ""
+            if not r.get("hsn_code"):
+                name_l = (r.get("item_name") or r.get("item_code") or "").lower()
+                r["hsn_code"] = "0802" if "almond" in name_l else ("1507" if "oil" in name_l else "1701")
     return records
 
 
 @frappe.whitelist(methods=["POST"], allow_guest=True)
 def save_item(data=None):
     """
-    Creates or updates an Item master with stock_group, gst_rate, stock_uom, and standard_rate.
+    Creates or updates an Item master with stock_group, gst_rate, hsn_code, stock_uom, and standard_rate.
     """
     if isinstance(data, str):
         payload = json.loads(data)
@@ -230,6 +264,20 @@ def save_item(data=None):
         default_gst = frappe.db.get_value("Stock Group", stock_group, "default_gst_rate")
         doc.gst_rate = flt(default_gst) if default_gst is not None else 5.0
 
+    # HSN Code
+    hsn_code = payload.get("hsn_code") or payload.get("gst_hsn_code")
+    if hsn_code is not None and str(hsn_code).strip():
+        hsn_str = str(hsn_code).strip()
+        if frappe.db.has_column("Item", "hsn_code"):
+            doc.hsn_code = hsn_str
+        if frappe.db.has_column("Item", "gst_hsn_code"):
+            doc.gst_hsn_code = hsn_str
+    elif not doc.get("hsn_code"):
+        name_lower = (doc.item_name or doc.item_code or "").lower()
+        default_hsn = "0802" if "almond" in name_lower else ("1507" if "oil" in name_lower else "1701")
+        if frappe.db.has_column("Item", "hsn_code"):
+            doc.hsn_code = default_hsn
+
     if payload.get("standard_rate"):
         doc.standard_rate = flt(payload.get("standard_rate"))
 
@@ -247,6 +295,7 @@ def save_item(data=None):
     doc.flags.ignore_permissions = True
     doc.save()
     frappe.db.commit()
+    return doc.as_dict()
     return doc.as_dict()
 
 
@@ -436,13 +485,18 @@ def search_entities(doctype=None, query=None, limit=30, for_purchase=None, for_s
         ]
 
     elif doctype == "Item":
+        has_hsn = frappe.db.has_column("Item", "hsn_code")
         fields = ["name", "item_name", "item_group", "stock_uom", "stock_group", "gst_rate"]
+        if has_hsn:
+            fields.append("hsn_code")
         or_filters = []
         if query:
             or_filters = [
                 ["item_name", "like", f"%{query}%"],
                 ["name", "like", f"%{query}%"],
             ]
+            if has_hsn:
+                or_filters.append(["hsn_code", "like", f"%{query}%"])
         records = frappe.get_all(
             "Item",
             filters={"disabled": 0},
@@ -456,10 +510,11 @@ def search_entities(doctype=None, query=None, limit=30, for_purchase=None, for_s
                 "id": r.name,
                 "name": r.name,
                 "label": r.item_name or r.name,
-                "sub": f"Group: {r.stock_group or 'Sugar'} | {r.stock_uom or 'Qtl'} | GST: {flt(r.gst_rate if r.gst_rate is not None else 5.0)}%",
+                "sub": f"Group: {r.stock_group or 'Sugar'} | HSN: {r.get('hsn_code') or '—'} | {r.stock_uom or 'Qtl'} | GST: {flt(r.gst_rate if r.gst_rate is not None else 5.0)}%",
                 "uom": r.stock_uom or "Quintal",
                 "stock_group": r.stock_group or "Sugar",
                 "gst_rate": flt(r.gst_rate if r.gst_rate is not None else 5.0),
+                "hsn_code": r.get("hsn_code") or "",
             }
             for r in records
         ]
@@ -947,9 +1002,12 @@ def save_purchase_entry(data=None):
         doc.brokerage_rate = flt(first.get("brokerage_rate"))
 
         for it in items_list:
+            item_doc_hsn = frappe.db.get_value("Item", it.get("item"), "hsn_code") if it.get("item") else ""
+            hsn = it.get("hsn_code") or item_doc_hsn or ""
             doc.append("items", {
                 "item": it.get("item"),
                 "item_name": it.get("item_name") or (frappe.db.get_value("Item", it.get("item"), "item_name") if it.get("item") else ""),
+                "hsn_code": hsn,
                 "stock_group": it.get("stock_group") or (frappe.db.get_value("Item", it.get("item"), "stock_group") if it.get("item") else "Sugar"),
                 "quantity": flt(it.get("quantity")),
                 "bags": flt(it.get("bags") or (flt(it.get("quantity")) * 2.0)),
@@ -1035,9 +1093,12 @@ def save_sales_entry(data=None):
         doc.brokerage_rate = flt(first.get("brokerage_rate"))
 
         for it in items_list:
+            item_doc_hsn = frappe.db.get_value("Item", it.get("item"), "hsn_code") if it.get("item") else ""
+            hsn = it.get("hsn_code") or item_doc_hsn or ""
             doc.append("items", {
                 "item": it.get("item"),
                 "item_name": it.get("item_name") or (frappe.db.get_value("Item", it.get("item"), "item_name") if it.get("item") else ""),
+                "hsn_code": hsn,
                 "stock_group": it.get("stock_group") or (frappe.db.get_value("Item", it.get("item"), "stock_group") if it.get("item") else "Sugar"),
                 "quantity": flt(it.get("quantity")),
                 "bags": flt(it.get("bags") or (flt(it.get("quantity")) * 2.0)),
@@ -1212,7 +1273,7 @@ def get_item_wise_register(from_date=None, to_date=None, broker=None, item=None,
                 "Broker Voucher Item",
                 filters={"parent": entry.name, "parenttype": "Broker Purchase Entry" if voucher_type == "Purchase" else "Broker Sales Entry"},
                 fields=[
-                    "item", "item_name", "stock_group", "quantity", "bags", "rate",
+                    "item", "item_name", "hsn_code", "stock_group", "quantity", "bags", "rate",
                     "trade_amount", "brokerage_method", "brokerage_rate", "brokerage_amount", "grand_total"
                 ]
             )
@@ -1221,6 +1282,7 @@ def get_item_wise_register(from_date=None, to_date=None, broker=None, item=None,
             child_rows = [{
                 "item": entry.item,
                 "item_name": entry.item_name or entry.item,
+                "hsn_code": frappe.db.get_value("Item", entry.item, "hsn_code") or "",
                 "stock_group": entry.stock_group or "Sugar",
                 "quantity": flt(entry.quantity),
                 "bags": flt(entry.bags),
@@ -1245,10 +1307,12 @@ def get_item_wise_register(from_date=None, to_date=None, broker=None, item=None,
                 continue
 
             i_name = row.get("item_name") or i_code
+            i_hsn = row.get("hsn_code") or (frappe.db.get_value("Item", i_code, "hsn_code") if i_code else "") or ""
             if i_code not in items_map:
                 items_map[i_code] = {
                     "item_code": i_code,
                     "item_name": i_name,
+                    "hsn_code": i_hsn,
                     "stock_group": i_sg,
                     "purchase_qty": 0.0,
                     "purchase_bags": 0.0,
@@ -1290,6 +1354,7 @@ def get_item_wise_register(from_date=None, to_date=None, broker=None, item=None,
                 "voucher_type": voucher_type,
                 "broker": entry.broker,
                 "broker_name": entry.broker_name,
+                "hsn_code": i_hsn,
                 "quantity": qty,
                 "bags": bags,
                 "rate": flt(row.get("rate")),

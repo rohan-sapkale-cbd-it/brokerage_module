@@ -40,7 +40,7 @@
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="Search by commodity name, code, or description... (Press / to focus)"
+              placeholder="Search by commodity name, code, HSN, or description... (Press / to focus)"
               style="padding-left: 32px; font-size: 13.5px;"
               @input="onFilterChange"
             />
@@ -101,12 +101,13 @@
             <thead>
               <tr>
                 <th style="width: 40px; text-align: center;">#</th>
-                <th style="min-width: 140px;">Item Code / ID</th>
-                <th style="min-width: 220px;">Commodity / Item Name</th>
-                <th style="width: 160px;">Stock Group</th>
-                <th style="width: 110px;">Stock UOM</th>
+                <th style="min-width: 130px;">Item Code / ID</th>
+                <th style="min-width: 200px;">Commodity / Item Name</th>
+                <th style="width: 110px;">HSN Code</th>
+                <th style="width: 150px;">Stock Group</th>
+                <th style="width: 100px;">Stock UOM</th>
                 <th style="width: 180px;">GST Rate (CGST + SGST)</th>
-                <th style="width: 140px; text-align: right;">Std Rate (₹)</th>
+                <th style="width: 130px; text-align: right;">Std Rate (₹)</th>
                 <th>Description / Packaging</th>
                 <th style="width: 80px; text-align: center;">Action</th>
               </tr>
@@ -128,6 +129,17 @@
 
                 <td style="font-weight: 600; color: #0f172a;">
                   {{ it.item_name || it.item_code }}
+                </td>
+
+                <td>
+                  <span
+                    v-if="it.hsn_code"
+                    class="badge badge-purple"
+                    style="font-family: var(--font-mono); font-size: 11px; font-weight: 700;"
+                  >
+                    {{ it.hsn_code }}
+                  </span>
+                  <span v-else style="color: #94a3b8; font-size: 12px;">—</span>
                 </td>
 
                 <td>
@@ -296,9 +308,10 @@ const filteredItems = computed(() => {
     list = list.filter((it) => {
       const code = (it.item_code || it.name || '').toLowerCase()
       const name = (it.item_name || '').toLowerCase()
+      const hsn = (it.hsn_code || '').toLowerCase()
       const grp = (it.stock_group || '').toLowerCase()
       const desc = (it.description || '').toLowerCase()
-      return code.includes(q) || name.includes(q) || grp.includes(q) || desc.includes(q)
+      return code.includes(q) || name.includes(q) || hsn.includes(q) || grp.includes(q) || desc.includes(q)
     })
   }
   return list

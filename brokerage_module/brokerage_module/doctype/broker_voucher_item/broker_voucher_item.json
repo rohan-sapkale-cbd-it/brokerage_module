@@ -8,6 +8,7 @@
  "field_order": [
   "item",
   "item_name",
+  "hsn_code",
   "stock_group",
   "quantity",
   "bags",
@@ -44,6 +45,14 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Item Name",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "item.hsn_code",
+   "fieldname": "hsn_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "HSN Code",
    "read_only": 1
   },
   {

@@ -86,15 +86,15 @@
             </div>
           </div>
 
-          <!-- UOM, GST Rate & Standard Rate -->
-          <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+          <!-- UOM, HSN Code, GST Rate & Standard Rate -->
+          <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
             <div class="form-group">
               <label style="font-weight: 700; color: #1e293b;">Stock UOM *</label>
               <select
                 ref="uomRef"
                 v-model="form.stock_uom"
                 style="font-size: 13.5px;"
-                @keydown.enter.prevent="focusField('gst')"
+                @keydown.enter.prevent="focusField('hsn')"
               >
                 <option value="Quintal">Quintal (Qtl)</option>
                 <option value="Bag">Bag (Bags)</option>
@@ -106,6 +106,23 @@
               </select>
             </div>
 
+            <div class="form-group">
+              <label style="font-weight: 700; color: #1e293b;">HSN / SAC Code</label>
+              <input
+                ref="hsnRef"
+                v-model="form.hsn_code"
+                type="text"
+                placeholder="e.g. 1701, 0802"
+                style="font-size: 13.5px; font-weight: 600; font-family: var(--font-mono);"
+                @keydown.enter.prevent="focusField('gst')"
+              />
+              <div style="font-size: 11px; color: #64748b; margin-top: 3px;">
+                GST HSN code (e.g. 1701 for Sugar/Jaggery, 0802 for Almonds)
+              </div>
+            </div>
+          </div>
+
+          <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
             <div class="form-group">
               <label style="font-weight: 700; color: #1e293b;">GST Rate (%) *</label>
               <div style="position: relative; display: flex; align-items: center;">
@@ -213,6 +230,7 @@ const codeRef = ref(null)
 const nameRef = ref(null)
 const stockGroupRef = ref(null)
 const uomRef = ref(null)
+const hsnRef = ref(null)
 const gstRef = ref(null)
 const stdRateRef = ref(null)
 const descRef = ref(null)
@@ -221,6 +239,7 @@ const form = reactive({
   isEdit: false,
   item_code: '',
   item_name: '',
+  hsn_code: '',
   stock_group: 'Sugar',
   stock_uom: 'Quintal',
   gst_rate: 5.0,
@@ -250,6 +269,7 @@ watch(
         form.isEdit = true
         form.item_code = props.itemData.item_code || props.itemData.name || ''
         form.item_name = props.itemData.item_name || props.itemData.name || ''
+        form.hsn_code = props.itemData.hsn_code || props.itemData.gst_hsn_code || ''
         form.stock_group = props.itemData.stock_group || 'Sugar'
         form.stock_uom = props.itemData.stock_uom || 'Quintal'
         form.gst_rate = props.itemData.gst_rate !== undefined ? props.itemData.gst_rate : 5.0
@@ -259,6 +279,7 @@ watch(
         form.isEdit = false
         form.item_code = ''
         form.item_name = ''
+        form.hsn_code = ''
         form.stock_group = stockGroups.value.find((g) => g.name === 'Sugar')?.name || (stockGroups.value[0]?.name || 'Sugar')
         form.stock_uom = 'Quintal'
         form.gst_rate = 5.0
@@ -277,6 +298,7 @@ const focusField = (field) => {
   if (field === 'name' && nameRef.value) nameRef.value.focus()
   else if (field === 'stockGroup' && stockGroupRef.value) stockGroupRef.value.focus()
   else if (field === 'uom' && uomRef.value) uomRef.value.focus()
+  else if (field === 'hsn' && hsnRef.value) hsnRef.value.focus()
   else if (field === 'gst' && gstRef.value) gstRef.value.focus()
   else if (field === 'stdRate' && stdRateRef.value) stdRateRef.value.focus()
   else if (field === 'desc' && descRef.value) descRef.value.focus()
