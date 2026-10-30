@@ -38,11 +38,7 @@ def ensure_test_prerequisites():
     else:
         company_name = companies[0]
 
-    # 2. Ensure Stock Group setup
-    from brokerage_module.brokerage_module.api import ensure_stock_group_setup
-    ensure_stock_group_setup()
-
-    # 3. Ensure Item DocType exists
+    # 2. Ensure Item DocType exists
     if not frappe.db.exists("DocType", "Item"):
         item_dt = frappe.new_doc("DocType")
         item_dt.name = "Item"
@@ -55,6 +51,7 @@ def ensure_test_prerequisites():
             {"fieldname": "item_group", "fieldtype": "Data", "label": "Item Group"},
             {"fieldname": "stock_group", "fieldtype": "Link", "options": "Stock Group", "label": "Stock Group"},
             {"fieldname": "gst_rate", "fieldtype": "Percent", "label": "GST Rate"},
+            {"fieldname": "hsn_code", "fieldtype": "Data", "label": "HSN Code"},
             {"fieldname": "stock_uom", "fieldtype": "Data", "label": "Stock UOM"},
             {"fieldname": "standard_rate", "fieldtype": "Currency", "label": "Standard Rate"},
             {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"}
@@ -62,6 +59,17 @@ def ensure_test_prerequisites():
             item_dt.append("fields", f)
         item_dt.insert(ignore_permissions=True)
         frappe.db.commit()
+
+    if frappe.db.exists("DocType", "Item") and not frappe.db.has_column("Item", "hsn_code"):
+        try:
+            frappe.db.sql("ALTER TABLE `tabItem` ADD COLUMN IF NOT EXISTS `hsn_code` varchar(140) DEFAULT NULL")
+            frappe.db.commit()
+        except Exception:
+            pass
+
+    # 3. Ensure Stock Group setup & custom fields
+    from brokerage_module.brokerage_module.api import ensure_stock_group_setup
+    ensure_stock_group_setup()
 
     # 4. Get or create test items
     items = frappe.get_all("Item", limit=2, pluck="name")
@@ -72,6 +80,7 @@ def ensure_test_prerequisites():
         item_doc.stock_uom = "Quintal"
         item_doc.stock_group = "Sugar"
         item_doc.gst_rate = 5.0
+        item_doc.hsn_code = "1701"
         item_doc.insert(ignore_permissions=True)
 
         item_doc_b = frappe.new_doc("Item")
@@ -80,6 +89,7 @@ def ensure_test_prerequisites():
         item_doc_b.stock_uom = "Quintal"
         item_doc_b.stock_group = "Sugar"
         item_doc_b.gst_rate = 5.0
+        item_doc_b.hsn_code = "1701"
         item_doc_b.insert(ignore_permissions=True)
         frappe.db.commit()
 

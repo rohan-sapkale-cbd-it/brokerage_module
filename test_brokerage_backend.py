@@ -38,11 +38,7 @@ def ensure_test_prerequisites():
     else:
         company_name = companies[0]
 
-    # 2. Ensure Stock Group setup
-    from brokerage_module.brokerage_module.api import ensure_stock_group_setup
-    ensure_stock_group_setup()
-
-    # 3. Ensure Item DocType exists
+    # 2. Ensure Item DocType exists
     if not frappe.db.exists("DocType", "Item"):
         item_dt = frappe.new_doc("DocType")
         item_dt.name = "Item"
@@ -55,6 +51,7 @@ def ensure_test_prerequisites():
             {"fieldname": "item_group", "fieldtype": "Data", "label": "Item Group"},
             {"fieldname": "stock_group", "fieldtype": "Link", "options": "Stock Group", "label": "Stock Group"},
             {"fieldname": "gst_rate", "fieldtype": "Percent", "label": "GST Rate"},
+            {"fieldname": "hsn_code", "fieldtype": "Data", "label": "HSN Code"},
             {"fieldname": "stock_uom", "fieldtype": "Data", "label": "Stock UOM"},
             {"fieldname": "standard_rate", "fieldtype": "Currency", "label": "Standard Rate"},
             {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"}
@@ -62,6 +59,17 @@ def ensure_test_prerequisites():
             item_dt.append("fields", f)
         item_dt.insert(ignore_permissions=True)
         frappe.db.commit()
+
+    if frappe.db.exists("DocType", "Item") and not frappe.db.has_column("Item", "hsn_code"):
+        try:
+            frappe.db.sql("ALTER TABLE `tabItem` ADD COLUMN IF NOT EXISTS `hsn_code` varchar(140) DEFAULT NULL")
+            frappe.db.commit()
+        except Exception:
+            pass
+
+    # 3. Ensure Stock Group setup & custom fields
+    from brokerage_module.brokerage_module.api import ensure_stock_group_setup
+    ensure_stock_group_setup()
 
     # 4. Get or create test items
     items = frappe.get_all("Item", limit=2, pluck="name")
@@ -72,6 +80,7 @@ def ensure_test_prerequisites():
         item_doc.stock_uom = "Quintal"
         item_doc.stock_group = "Sugar"
         item_doc.gst_rate = 5.0
+        item_doc.hsn_code = "1701"
         item_doc.insert(ignore_permissions=True)
 
         item_doc_b = frappe.new_doc("Item")
@@ -80,6 +89,7 @@ def ensure_test_prerequisites():
         item_doc_b.stock_uom = "Quintal"
         item_doc_b.stock_group = "Sugar"
         item_doc_b.gst_rate = 5.0
+        item_doc_b.hsn_code = "1701"
         item_doc_b.insert(ignore_permissions=True)
         frappe.db.commit()
 
@@ -429,8 +439,62 @@ def _run_tests_internal():
     assert sg_s_entry["brokerage_amount"] == 1200.0, f"Expected 1200 Brokerage, got {sg_s_entry['brokerage_amount']}"
     print(f"  [PASS] Sales Entry {sg_s_entry['name']}: Trade ₹{sg_s_entry['trade_amount']} + CGST ₹{sg_s_entry['cgst_amount']} + SGST ₹{sg_s_entry['sgst_amount']} = Grand Total ₹{sg_s_entry['grand_total']} | Brokerage ₹{sg_s_entry['brokerage_amount']}")
 
+    # --- Test 12: Multi-Item Purchase and Sales Vouchers ---
+    print("\n--- Test 12: Multi-Item Purchase and Sales Vouchers ---")
+    multi_p_entry = save_purchase_entry({
+        "posting_date": nowdate(),
+        "company": company,
+        "broker": sg_broker_id,
+        "items": [
+            {
+                "item": item_a,
+                "stock_group": "Sugar",
+                "quantity": 50,
+                "bags": 100,
+                "rate": 3800.0,
+                "gst_rate": 5.0,
+                "brokerage_method": "Percentage",
+                "brokerage_rate": 1.0,
+            },
+            {
+                "item": test_item_code,
+                "stock_group": sg_name,
+                "quantity": 30,
+                "bags": 60,
+                "rate": 4200.0,
+                "gst_rate": 5.0,
+                "brokerage_method": "Per Bag",
+                "brokerage_rate": 15.0,
+            }
+        ],
+        "remarks": "Multi-item purchase test voucher",
+        "submit": True
+    })
+    # Item 1: 50 * 3800 = 190,000 Trade. GST 5% = 9,500. Grand = 199,500. Brokerage = 1,900.
+    # Item 2: 30 * 4200 = 126,000 Trade. GST 5% = 6,300. Grand = 132,300. Brokerage = 60 * 15 = 900.
+    # Total Trade = 316,000. Total GST = 15,800. Grand Total = 331,800. Total Brokerage = 2,800. Total Qty = 80. Bags = 160.
+    assert multi_p_entry["quantity"] == 80.0, f"Expected 80 qty, got {multi_p_entry['quantity']}"
+    assert multi_p_entry["bags"] == 160.0, f"Expected 160 bags, got {multi_p_entry['bags']}"
+    assert multi_p_entry["trade_amount"] == 316000.0, f"Expected 316000 trade, got {multi_p_entry['trade_amount']}"
+    assert multi_p_entry["total_gst_amount"] == 15800.0, f"Expected 15800 GST, got {multi_p_entry['total_gst_amount']}"
+    assert multi_p_entry["grand_total"] == 331800.0, f"Expected 331800 grand total, got {multi_p_entry['grand_total']}"
+    assert multi_p_entry["brokerage_amount"] == 2800.0, f"Expected 2800 brokerage, got {multi_p_entry['brokerage_amount']}"
+    print(f"  [PASS] Multi-Item Purchase Entry {multi_p_entry['name']}: {len(multi_p_entry.get('items', []))} items | Qty {multi_p_entry['quantity']} Qtl | Trade ₹{multi_p_entry['trade_amount']} | Grand ₹{multi_p_entry['grand_total']} | Brk ₹{multi_p_entry['brokerage_amount']}")
+
+    # --- Test 13: Item-Wise Register Report Aggregation ---
+    print("\n--- Test 13: Item-Wise Register Report Aggregation ---")
+    from brokerage_module.brokerage_module.api import get_item_wise_register
+    item_reg = get_item_wise_register(broker=sg_broker_id)
+    assert "items" in item_reg, "Must return items array"
+    assert "summary" in item_reg, "Must return summary object"
+    assert len(item_reg["items"]) > 0, "Must contain aggregated commodity rows"
+    sugar_item = next((i for i in item_reg["items"] if i["item_code"] == item_a), None)
+    assert sugar_item is not None, f"Item {item_a} must be present in item-wise register"
+    assert sugar_item["purchase_qty"] >= 50.0, f"Expected at least 50 purchase qty for {item_a}"
+    print(f"  [PASS] Item-Wise Register: {len(item_reg['items'])} commodities aggregated | Overall Trade ₹{item_reg['summary']['overall_trade']} | Overall Brokerage ₹{item_reg['summary']['overall_brokerage']}")
+
     print("\n==================================================")
-    print("ALL 11 BROKERAGE MODULE BACKEND TESTS PASSED (100%)")
+    print("ALL 13 BROKERAGE MODULE BACKEND TESTS PASSED (100%)")
     print("==================================================")
 
 

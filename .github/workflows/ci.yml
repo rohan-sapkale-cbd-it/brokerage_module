@@ -100,6 +100,7 @@ jobs:
           bench setup requirements --dev
           bench new-site --db-root-password root --admin-password admin test_site
           bench --site test_site install-app brokerage_module
+          bench --site test_site execute brokerage_module.brokerage_module.api.ensure_stock_group_setup || true
         env:
           CI: 'Yes'
 

@@ -52,6 +52,12 @@ def ensure_stock_group_setup():
                 cfields.append(cf)
         if cfields:
             create_custom_fields({"Item": cfields}, update=True)
+        if not frappe.db.has_column("Item", "hsn_code"):
+            try:
+                frappe.db.sql("ALTER TABLE `tabItem` ADD COLUMN IF NOT EXISTS `hsn_code` varchar(140) DEFAULT NULL")
+                frappe.db.commit()
+            except Exception:
+                pass
 
     # Ensure default Stock Group 'Sugar' exists
     if not frappe.db.exists("Stock Group", "Sugar"):
@@ -113,6 +119,17 @@ def ensure_stock_group_setup():
 
     frappe.db.commit()
     return {"status": "success", "items_updated": items_updated}
+
+
+def get_item_hsn(item_code):
+    """Safely retrieves the HSN code for an item, falling back to gst_hsn_code or empty string if absent."""
+    if not item_code or not frappe.db.exists("DocType", "Item"):
+        return ""
+    if frappe.db.has_column("Item", "hsn_code"):
+        return frappe.db.get_value("Item", item_code, "hsn_code") or ""
+    elif frappe.db.has_column("Item", "gst_hsn_code"):
+        return frappe.db.get_value("Item", item_code, "gst_hsn_code") or ""
+    return ""
 
 
 @frappe.whitelist(methods=["GET", "POST"], allow_guest=True)
@@ -1002,7 +1019,7 @@ def save_purchase_entry(data=None):
         doc.brokerage_rate = flt(first.get("brokerage_rate"))
 
         for it in items_list:
-            item_doc_hsn = frappe.db.get_value("Item", it.get("item"), "hsn_code") if it.get("item") else ""
+            item_doc_hsn = get_item_hsn(it.get("item")) if it.get("item") else ""
             hsn = it.get("hsn_code") or item_doc_hsn or ""
             doc.append("items", {
                 "item": it.get("item"),
@@ -1093,7 +1110,7 @@ def save_sales_entry(data=None):
         doc.brokerage_rate = flt(first.get("brokerage_rate"))
 
         for it in items_list:
-            item_doc_hsn = frappe.db.get_value("Item", it.get("item"), "hsn_code") if it.get("item") else ""
+            item_doc_hsn = get_item_hsn(it.get("item")) if it.get("item") else ""
             hsn = it.get("hsn_code") or item_doc_hsn or ""
             doc.append("items", {
                 "item": it.get("item"),
@@ -1282,7 +1299,7 @@ def get_item_wise_register(from_date=None, to_date=None, broker=None, item=None,
             child_rows = [{
                 "item": entry.item,
                 "item_name": entry.item_name or entry.item,
-                "hsn_code": frappe.db.get_value("Item", entry.item, "hsn_code") or "",
+                "hsn_code": get_item_hsn(entry.item),
                 "stock_group": entry.stock_group or "Sugar",
                 "quantity": flt(entry.quantity),
                 "bags": flt(entry.bags),
@@ -1307,7 +1324,7 @@ def get_item_wise_register(from_date=None, to_date=None, broker=None, item=None,
                 continue
 
             i_name = row.get("item_name") or i_code
-            i_hsn = row.get("hsn_code") or (frappe.db.get_value("Item", i_code, "hsn_code") if i_code else "") or ""
+            i_hsn = row.get("hsn_code") or get_item_hsn(i_code)
             if i_code not in items_map:
                 items_map[i_code] = {
                     "item_code": i_code,
