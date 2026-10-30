@@ -361,43 +361,6 @@ const form = reactive({
   remarks: '',
 })
 
-// Helper to create an item row
-let rowSeq = 0
-const createRow = (defaultQty = 100, defaultRate = 3800) => {
-  rowSeq++
-  const row = reactive({
-    id: `row-${Date.now()}-${rowSeq}`,
-    item: '',
-    item_name: '',
-    stock_group: 'Sugar',
-    quantity: defaultQty,
-    bags: Math.round(defaultQty * 2),
-    rate: defaultRate,
-    trade_amount: defaultQty * defaultRate,
-    gst_rate: 5.0,
-    cgst_rate: 2.5,
-    cgst_amount: 0,
-    sgst_rate: 2.5,
-    sgst_amount: 0,
-    total_gst_amount: 0,
-    grand_total: 0,
-    brokerage_method: 'Percentage',
-    brokerage_rate: 1.0,
-    percentage: 1.0,
-    per_bag: 0,
-    per_quintal: 0,
-    brokerage_amount: 0,
-    rate_source: '',
-    ruleNotice: '',
-    remarks: '',
-  })
-  calculateRow(row)
-  return row
-}
-
-// Multi-item rows array
-const items = ref([createRow(100, 3800)])
-
 // Calculate line item totals
 const calculateRow = (row) => {
   const qty = Number(row.quantity) || 0
@@ -435,6 +398,43 @@ const calculateRow = (row) => {
   }
   row.brokerage_amount = brkAmt
 }
+
+// Helper to create an item row
+let rowSeq = 0
+const createRow = (defaultQty = 100, defaultRate = 3800) => {
+  rowSeq++
+  const row = reactive({
+    id: `row-${Date.now()}-${rowSeq}`,
+    item: '',
+    item_name: '',
+    stock_group: 'Sugar',
+    quantity: defaultQty,
+    bags: Math.round(defaultQty * 2),
+    rate: defaultRate,
+    trade_amount: defaultQty * defaultRate,
+    gst_rate: 5.0,
+    cgst_rate: 2.5,
+    cgst_amount: 0,
+    sgst_rate: 2.5,
+    sgst_amount: 0,
+    total_gst_amount: 0,
+    grand_total: 0,
+    brokerage_method: 'Percentage',
+    brokerage_rate: 1.0,
+    percentage: 1.0,
+    per_bag: 0,
+    per_quintal: 0,
+    brokerage_amount: 0,
+    rate_source: '',
+    ruleNotice: '',
+    remarks: '',
+  })
+  calculateRow(row)
+  return row
+}
+
+// Multi-item rows array
+const items = ref([createRow(100, 3800)])
 
 const onRowQtyInput = (row) => {
   row.bags = Math.round(Number(row.quantity || 0) * 2.0)

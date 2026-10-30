@@ -616,6 +616,21 @@ const loadAvailableStockGroups = async () => {
   }
 }
 
+const resetForm = () => {
+  form.name = ''
+  form.broker_name = ''
+  form.mobile_no = ''
+  form.city = ''
+  form.state = ''
+  form.gst_number = ''
+  form.email = ''
+  form.status = 'Active'
+  form.applicable_for_purchase = true
+  form.applicable_for_sales = true
+  form.purchase_brokerage_rules = []
+  form.sales_brokerage_rules = []
+}
+
 watch(
   () => props.show,
   (val) => {
@@ -637,8 +652,8 @@ watch(
       form.gst_number = val.gst_number || ''
       form.email = val.email || ''
       form.status = val.status || 'Active'
-      form.applicable_for_purchase = val.applicable_for_purchase in [1, true, '1']
-      form.applicable_for_sales = val.applicable_for_sales in [1, true, '1']
+      form.applicable_for_purchase = [1, true, '1'].includes(val.applicable_for_purchase)
+      form.applicable_for_sales = [1, true, '1'].includes(val.applicable_for_sales)
       form.purchase_brokerage_rules = (val.purchase_brokerage_rules || []).map((r) => ({
         stock_group: r.stock_group || r.item || 'Sugar',
         stock_group_name: r.stock_group_name || r.item_name || r.stock_group || 'Sugar',
@@ -655,21 +670,6 @@ watch(
   },
   { immediate: true }
 )
-
-const resetForm = () => {
-  form.name = ''
-  form.broker_name = ''
-  form.mobile_no = ''
-  form.city = ''
-  form.state = ''
-  form.gst_number = ''
-  form.email = ''
-  form.status = 'Active'
-  form.applicable_for_purchase = true
-  form.applicable_for_sales = true
-  form.purchase_brokerage_rules = []
-  form.sales_brokerage_rules = []
-}
 
 const searchStockGroups = async (q) => {
   return await searchEntities('Stock Group', q)

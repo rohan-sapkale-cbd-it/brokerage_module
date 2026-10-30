@@ -9,9 +9,9 @@
               <span>📋 Trade &amp; Brokerage Audit Registers</span>
               <span
                 class="badge"
-                :class="currentType === 'Purchase' ? 'badge-blue' : (currentType === 'Sell' ? 'badge-green' : (currentType === 'ItemWise' ? 'badge-purple' : 'badge-amber'))"
+                :class="currentType === 'Purchase' ? 'badge-blue' : ((currentType === 'Sell' || currentType === 'Sales') ? 'badge-green' : (currentType === 'ItemWise' ? 'badge-purple' : 'badge-amber'))"
               >
-                {{ currentType === 'SalesOutstanding' ? 'Sales Outstanding Register' : (currentType === 'ItemWise' ? 'Item-Wise Register' : (currentType + ' Register')) }}
+                {{ currentType === 'SalesOutstanding' ? 'Sales Outstanding Register' : (currentType === 'ItemWise' ? 'Item-Wise Register' : ((currentType === 'Sell' || currentType === 'Sales') ? 'Sales Register' : 'Purchase Register')) }}
               </span>
             </div>
             <div class="page-subtitle">
@@ -20,7 +20,7 @@
                   ? 'Audit pending sales trade collections, broker commission outstandings, and ageing dues.'
                   : (currentType === 'ItemWise'
                     ? 'Audit commodity and item-wise trading volumes, net quintals, and total brokerage earnings.'
-                    : 'View all booked ' + currentType + ' entries with exact brokerage calculations and source audit.')
+                    : 'View all booked ' + ((currentType === 'Sell' || currentType === 'Sales') ? 'Sales' : currentType) + ' entries with exact brokerage calculations and source audit.')
               }}
             </div>
           </div>
@@ -67,7 +67,7 @@
         <!-- ======================================================== -->
         <!-- VIEW 1 & 2: STANDARD PURCHASE / SALES REGISTERS          -->
         <!-- ======================================================== -->
-        <template v-if="currentType === 'Purchase' || currentType === 'Sell'">
+        <template v-if="currentType === 'Purchase' || currentType === 'Sell' || currentType === 'Sales'">
           <!-- Filter Bar -->
           <div style="background: var(--panel-soft); padding: 12px 16px; border-radius: 6px; border: 1px solid var(--line); margin-bottom: 16px; display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap;">
             <div class="form-group" style="min-width: 140px;">
@@ -167,7 +167,7 @@
                 </tr>
                 <tr v-for="r in records" :key="r.name">
                   <td style="font-family: var(--font-mono); font-weight: 600; font-size: 12px;">
-                    <a :href="`/app/${currentType === 'Purchase' ? 'broker-purchase-entry' : 'broker-sales-entry'}/${r.name}`" target="_blank" style="color: var(--blue); text-decoration: none;">
+                    <a :href="`/app/${(currentType === 'Sell' || currentType === 'Sales') ? 'broker-sales-entry' : 'broker-purchase-entry'}/${r.name}`" target="_blank" style="color: var(--blue); text-decoration: none;">
                       {{ r.name }} ↗
                     </a>
                   </td>
@@ -175,6 +175,9 @@
                   <td style="font-weight: 600;">{{ r.broker_name || r.broker }}</td>
                   <td>
                     <div style="font-weight: 600;">{{ r.item_name || r.item }}</div>
+                    <div v-if="r.items_count > 1" style="font-size: 10.5px; color: var(--blue); margin-top: 1px; font-weight: 600;">
+                      📦 {{ r.items_count }} Items Combined
+                    </div>
                     <span v-if="r.stock_group" class="badge badge-purple" style="font-size: 10px; margin-top: 2px;">
                       🏷️ {{ r.stock_group }}
                     </span>
@@ -189,10 +192,12 @@
                     ₹{{ formatCurrency(r.grand_total || r.trade_amount) }}
                   </td>
                   <td>
-                    <span class="badge" :class="currentType === 'Purchase' ? 'badge-blue' : 'badge-green'">{{ r.brokerage_method }}</span>
+                    <span v-if="r.items_count > 1" class="badge badge-purple">Multi-Item</span>
+                    <span v-else class="badge" :class="(currentType === 'Sell' || currentType === 'Sales') ? 'badge-green' : 'badge-blue'">{{ r.brokerage_method }}</span>
                   </td>
                   <td style="text-align: right; font-family: var(--font-mono);">
-                    {{ r.brokerage_method === 'Percentage' ? `${r.brokerage_rate}%` : (r.brokerage_method === 'Per Bag' ? `₹${r.brokerage_rate}/bag` : `₹${r.brokerage_rate}/qtl`) }}
+                    <span v-if="r.items_count > 1" style="font-size: 11px; color: var(--muted);">Multi-Terms</span>
+                    <span v-else>{{ r.brokerage_method === 'Percentage' ? `${r.brokerage_rate}%` : (r.brokerage_method === 'Per Bag' ? `₹${r.brokerage_rate}/bag` : `₹${r.brokerage_rate}/qtl`) }}</span>
                   </td>
                   <td style="text-align: right; font-weight: 800; color: var(--green);">
                     ₹{{ formatCurrency(r.brokerage_amount) }}
@@ -870,7 +875,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useFrappeApi } from '../composables/useFrappeApi'
 import { showToast } from '../composables/useKeyboardEngine'
@@ -1084,7 +1089,8 @@ const resetOutFilters = () => {
 // Load standard Purchase or Sales register entries
 const loadData = async () => {
   try {
-    const res = await getEntries(currentType.value, {
+    const entryTypeParam = (currentType.value === 'Sell' || currentType.value === 'Sales') ? 'Sell' : 'Purchase'
+    const res = await getEntries(entryTypeParam, {
       from_date: filters.from_date || undefined,
       to_date: filters.to_date || undefined,
       broker: filters.broker || undefined,
@@ -1094,6 +1100,8 @@ const loadData = async () => {
     summary.total_trade = res.total_trade || 0
     summary.total_brokerage = res.total_brokerage || 0
     summary.total_qty = res.total_qty || 0
+    summary.total_gst = res.total_gst || 0
+    summary.total_grand = res.total_grand || 0
   } catch (e) {
     console.error('Failed to load register entries:', e)
   }
@@ -1152,8 +1160,7 @@ const handleSelect = (idx) => {
   menuItems[idx].action()
 }
 
-onMounted(() => {
-  const qType = route.query.type
+const handleTypeFromQuery = (qType) => {
   if (qType === 'SalesOutstanding' || qType === 'Outstanding' || qType === 'outstanding') {
     currentType.value = 'SalesOutstanding'
     loadSalesOutstanding()
@@ -1167,5 +1174,16 @@ onMounted(() => {
     currentType.value = 'Purchase'
     loadData()
   }
+}
+
+watch(
+  () => route.query.type,
+  (newType) => {
+    handleTypeFromQuery(newType)
+  }
+)
+
+onMounted(() => {
+  handleTypeFromQuery(route.query.type)
 })
 </script>

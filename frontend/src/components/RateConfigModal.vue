@@ -531,7 +531,7 @@ const handleKeydown = (e) => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
-  loadAvailableCommodities()
+  loadAvailableStockGroups()
 })
 
 onBeforeUnmount(() => {

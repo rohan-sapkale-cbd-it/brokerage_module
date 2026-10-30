@@ -64,7 +64,7 @@
         <button
           type="button"
           class="sub-link-btn"
-          :class="{ active: route.path === '/registers' && route.query.type === 'Purchase' }"
+          :class="{ active: route.path === '/registers' && (route.query.type === 'Purchase' || !route.query.type) }"
           @click="navigate('/registers?type=Purchase')"
         >
           <span>Purchase Register</span>
@@ -78,6 +78,15 @@
         >
           <span>Sales Register</span>
           <kbd>S</kbd>
+        </button>
+        <button
+          type="button"
+          class="sub-link-btn"
+          :class="{ active: route.path === '/registers' && (route.query.type === 'ItemWise' || route.query.type === 'item-wise') }"
+          @click="navigate('/registers?type=ItemWise')"
+        >
+          <span>Item-Wise Register</span>
+          <kbd>I</kbd>
         </button>
         <button
           type="button"

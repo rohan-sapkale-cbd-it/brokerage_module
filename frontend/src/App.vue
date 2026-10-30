@@ -2,7 +2,7 @@
   <div id="app">
     <TopBar />
     <NavigationPillars />
-    <RouterView />
+    <RouterView :key="$route.fullPath" />
     <FunctionKeyBar />
 
     <!-- Modals & Overlays -->
