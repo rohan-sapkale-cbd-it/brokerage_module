@@ -934,6 +934,16 @@ def save_purchase_entry(data=None):
 
     items_list = payload.get("items")
     if items_list and isinstance(items_list, list) and len(items_list) > 0:
+        first = items_list[0]
+        doc.item = first.get("item")
+        doc.item_name = first.get("item_name") or (frappe.db.get_value("Item", doc.item, "item_name") if doc.item else "") or doc.item
+        doc.stock_group = first.get("stock_group") or (frappe.db.get_value("Item", doc.item, "stock_group") if doc.item else "Sugar")
+        doc.quantity = flt(sum(flt(it.get("quantity")) for it in items_list))
+        doc.bags = flt(sum(flt(it.get("bags") or (flt(it.get("quantity")) * 2.0)) for it in items_list))
+        doc.rate = flt(first.get("rate"))
+        doc.brokerage_method = first.get("brokerage_method") or "Percentage"
+        doc.brokerage_rate = flt(first.get("brokerage_rate"))
+
         for it in items_list:
             doc.append("items", {
                 "item": it.get("item"),
@@ -1010,6 +1020,16 @@ def save_sales_entry(data=None):
 
     items_list = payload.get("items")
     if items_list and isinstance(items_list, list) and len(items_list) > 0:
+        first = items_list[0]
+        doc.item = first.get("item")
+        doc.item_name = first.get("item_name") or (frappe.db.get_value("Item", doc.item, "item_name") if doc.item else "") or doc.item
+        doc.stock_group = first.get("stock_group") or (frappe.db.get_value("Item", doc.item, "stock_group") if doc.item else "Sugar")
+        doc.quantity = flt(sum(flt(it.get("quantity")) for it in items_list))
+        doc.bags = flt(sum(flt(it.get("bags") or (flt(it.get("quantity")) * 2.0)) for it in items_list))
+        doc.rate = flt(first.get("rate"))
+        doc.brokerage_method = first.get("brokerage_method") or "Percentage"
+        doc.brokerage_rate = flt(first.get("brokerage_rate"))
+
         for it in items_list:
             doc.append("items", {
                 "item": it.get("item"),

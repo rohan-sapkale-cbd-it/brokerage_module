@@ -21,12 +21,8 @@ def get_context(context):
         except Exception:
             pass
 
-    # Asset cache-buster to prevent stale browser caching
-    asset_file = frappe.get_app_path("brokerage_module", "public", "frontend", "assets", "index.js")
-    if os.path.exists(asset_file):
-        build_ver = str(int(os.path.getmtime(asset_file)))
-    else:
-        build_ver = str(int(time.time()))
+    # Always use current timestamp as cache-buster so browser never serves stale JS/CSS
+    build_ver = str(int(time.time()))
 
     context["build_version"] = build_ver
     if hasattr(context, "build_version"):

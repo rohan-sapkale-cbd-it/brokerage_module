@@ -72,6 +72,7 @@
                 placeholder="Click or Enter to select Purchase Broker..."
                 :fetch-fn="searchPurchaseBrokers"
                 @change="onBrokerSelected"
+                @enter="focusFirstItem"
               />
             </div>
           </div>
@@ -97,12 +98,12 @@
             </div>
 
             <!-- Items Table -->
-            <div style="overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: #fff;">
-              <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <div style="min-height: 320px; overflow: visible; position: relative; border: 1px solid var(--line); border-radius: 6px; background: #fff;">
+              <table class="data-table" style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px;">
                 <thead style="background: var(--panel-soft);">
                   <tr>
                     <th style="width: 32px; text-align: center;">#</th>
-                    <th style="min-width: 200px;">Commodity / Item *</th>
+                    <th style="min-width: 220px;">Commodity / Item *</th>
                     <th style="min-width: 100px;">Group</th>
                     <th style="width: 105px; text-align: right;">Qty (Qtl) *</th>
                     <th style="width: 85px; text-align: right;">Bags</th>
@@ -115,19 +116,20 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(row, idx) in items" :key="row.id" style="border-bottom: 1px solid var(--line);">
+                  <tr v-for="(row, idx) in items" :key="row.id" style="border-bottom: 1px solid var(--line); position: relative;">
                     <td style="text-align: center; color: var(--muted); font-weight: 700; vertical-align: middle;">
                       {{ idx + 1 }}
                     </td>
 
                     <!-- Commodity Selector -->
-                    <td style="vertical-align: middle; padding: 6px 8px;">
+                    <td style="vertical-align: middle; padding: 6px 8px; position: relative; overflow: visible;">
                       <TypeaheadSelect
                         v-model="row.item"
                         :label="row.item_name"
                         placeholder="Search item..."
                         :fetch-fn="searchItems"
                         @change="(val) => onRowItemSelected(row, val)"
+                        @enter="() => focusRowField(idx, 'quantity')"
                       />
                       <div v-if="row.ruleNotice" style="font-size: 10px; color: #166534; margin-top: 2px;">
                         ⚡ {{ row.ruleNotice }}
@@ -144,6 +146,7 @@
                     <!-- Quantity -->
                     <td style="vertical-align: middle; padding: 6px 8px;">
                       <input
+                        data-field="quantity"
                         v-model.number="row.quantity"
                         type="number"
                         step="0.01"
@@ -151,24 +154,28 @@
                         required
                         style="width: 100%; text-align: right; padding: 4px 6px; font-weight: 600;"
                         @input="() => onRowQtyInput(row)"
+                        @keydown.enter.prevent="() => focusRowField(idx, 'bags')"
                       />
                     </td>
 
                     <!-- Bags -->
                     <td style="vertical-align: middle; padding: 6px 8px;">
                       <input
+                        data-field="bags"
                         v-model.number="row.bags"
                         type="number"
                         step="1"
                         min="0"
                         style="width: 100%; text-align: right; padding: 4px 6px;"
                         @input="() => onRowBagsInput(row)"
+                        @keydown.enter.prevent="() => focusRowField(idx, 'rate')"
                       />
                     </td>
 
                     <!-- Rate -->
                     <td style="vertical-align: middle; padding: 6px 8px;">
                       <input
+                        data-field="rate"
                         v-model.number="row.rate"
                         type="number"
                         step="0.01"
@@ -176,6 +183,7 @@
                         required
                         style="width: 100%; text-align: right; padding: 4px 6px; font-weight: 600;"
                         @input="() => calculateRow(row)"
+                        @keydown.enter.prevent="() => focusRowField(idx, 'gst_rate')"
                       />
                     </td>
 
@@ -187,6 +195,7 @@
                     <!-- GST % -->
                     <td style="vertical-align: middle; padding: 6px 8px;">
                       <input
+                        data-field="gst_rate"
                         v-model.number="row.gst_rate"
                         type="number"
                         step="0.01"
@@ -194,6 +203,7 @@
                         max="100"
                         style="width: 100%; text-align: right; padding: 4px 6px; color: #166534; font-weight: 600;"
                         @input="() => calculateRow(row)"
+                        @keydown.enter.prevent="() => focusRowField(idx, 'brokerage_rate')"
                       />
                     </td>
 
@@ -210,12 +220,14 @@
                           <option value="Per Quintal">₹/Qtl</option>
                         </select>
                         <input
+                          data-field="brokerage_rate"
                           v-model.number="row.brokerage_rate"
                           type="number"
                           step="0.01"
                           min="0"
                           style="width: 70px; text-align: right; padding: 4px 6px; font-size: 11.5px;"
                           @input="() => calculateRow(row)"
+                          @keydown.enter.prevent="() => onRowEnd(idx)"
                         />
                       </div>
                     </td>
@@ -554,9 +566,37 @@ const onDateChange = async () => {
 }
 
 const focusBroker = () => {
-  if (brokerSelect.value && brokerSelect.value.$el) {
+  if (brokerSelect.value && typeof brokerSelect.value.focus === 'function') {
+    brokerSelect.value.focus()
+  } else if (brokerSelect.value && brokerSelect.value.$el) {
     const inp = brokerSelect.value.$el.querySelector('input')
     if (inp) inp.focus()
+  }
+}
+
+const focusFirstItem = () => {
+  nextTick(() => {
+    const firstItemInp = document.querySelector('.data-table tbody tr:first-child .typeahead-wrap input')
+    if (firstItemInp) firstItemInp.focus()
+  })
+}
+
+const focusRowField = (idx, field) => {
+  nextTick(() => {
+    const inp = document.querySelector(`.data-table tbody tr:nth-child(${idx + 1}) input[data-field="${field}"]`)
+    if (inp) {
+      inp.focus()
+      inp.select?.()
+    }
+  })
+}
+
+const onRowEnd = (idx) => {
+  if (idx < items.value.length - 1) {
+    const nextItemInp = document.querySelector(`.data-table tbody tr:nth-child(${idx + 2}) .typeahead-wrap input`)
+    if (nextItemInp) nextItemInp.focus()
+  } else {
+    if (remarksInput.value) remarksInput.value.focus()
   }
 }
 
